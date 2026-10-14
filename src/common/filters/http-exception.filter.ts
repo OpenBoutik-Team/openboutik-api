@@ -19,7 +19,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'Une erreur interne est survenue sur le serveur';
     let error = 'Internal Server Error';
-    let details: any = undefined;
+    let details: string[] | undefined = undefined;
+
+    const isProduction = process.env.NODE_ENV === 'production';
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -28,20 +30,53 @@ export class AllExceptionsFilter implements ExceptionFilter {
       if (typeof res === 'string') {
         message = res;
       } else if (typeof res === 'object' && res !== null) {
-        const resObj = res as Record<string, any>;
-        message = resObj.message
-          ? Array.isArray(resObj.message)
-            ? resObj.message[0]
-            : resObj.message
-          : exception.message;
-        error = resObj.error || exception.name;
-        if (Array.isArray(resObj.message)) {
-          details = resObj.message;
+        const resObj = res as Record<string, unknown>;
+        if (typeof resObj.message === 'string') {
+          message = resObj.message;
+        } else if (Array.isArray(resObj.message)) {
+          message = typeof resObj.message[0] === 'string' ? resObj.message[0] : exception.message;
+          details = resObj.message.filter((m): m is string => typeof m === 'string');
+        } else {
+          message = exception.message;
         }
+        error = typeof resObj.error === 'string' ? resObj.error : exception.name;
+      }
+    } else if (
+      typeof exception === 'object' &&
+      exception !== null &&
+      'code' in exception &&
+      typeof (exception as { code: unknown }).code === 'string'
+    ) {
+      // Interception des erreurs Prisma (P2002, P2025, P2003...)
+      const prismaCode = (exception as { code: string }).code;
+      this.logger.warn(`Erreur Prisma interceptée : [${prismaCode}]`);
+
+      switch (prismaCode) {
+        case 'P2002':
+          status = HttpStatus.CONFLICT;
+          message = 'Une ressource avec ces données existe déjà (contrainte unique violée)';
+          error = 'Conflict';
+          break;
+        case 'P2025':
+          status = HttpStatus.NOT_FOUND;
+          message = 'L’enregistrement demandé est introuvable ou n’existe plus';
+          error = 'Not Found';
+          break;
+        case 'P2003':
+          status = HttpStatus.BAD_REQUEST;
+          message = 'Référence associée invalide ou introuvable (clé étrangère)';
+          error = 'Bad Request';
+          break;
+        default:
+          status = HttpStatus.BAD_REQUEST;
+          message = isProduction ? 'Requête BDD non valide' : `Erreur BDD [${prismaCode}]`;
+          error = 'Database Error';
       }
     } else if (exception instanceof Error) {
       this.logger.error(`Exception inattendue: ${exception.message}`, exception.stack);
-      message = exception.message;
+      message = isProduction
+        ? 'Une erreur interne est survenue sur le serveur'
+        : exception.message;
     } else {
       this.logger.error('Exception inconnue', exception);
     }

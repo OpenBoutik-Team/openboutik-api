@@ -18,7 +18,10 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:e2e": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config ./test/jest-e2e.json",
+    "test:stress": "tsx test/openboutik-stress.e2e-spec.ts",
+    "test:chaos": "tsx test/openboutik-chaos-extreme.e2e-spec.ts",
+    "test:pentest": "tsx test/openboutik-pentest.e2e-spec.ts",
     "seed": "npx tsx prisma/seed.ts"
   },
   "dependencies": {

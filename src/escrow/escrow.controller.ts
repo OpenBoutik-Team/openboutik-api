@@ -19,6 +19,8 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { Role } from '../generated/prisma/client';
+import { WaveWebhookGuard } from './guards/wave-webhook.guard';
+import { OrangeMoneyWebhookGuard } from './guards/orange-money-webhook.guard';
 
 @ApiTags('Commandes & Séquestre')
 @Controller('escrow')
@@ -58,24 +60,26 @@ export class EscrowController {
   }
 
   @Public()
+  @UseGuards(WaveWebhookGuard)
   @Post('webhooks/wave')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Webhook de notification Wave Sénégal',
-    description: 'Reçoit et traite les confirmations de paiements de transactions de séquestre de manière idempotente.',
+    description: 'Reçoit et traite les confirmations de paiements de transactions de séquestre de manière idempotente avec validation HMAC.',
   })
-  async handleWaveWebhook(@Body() payload: any) {
+  async handleWaveWebhook(@Body() payload: Record<string, unknown>) {
     return this.escrowService.handleWaveWebhook(payload);
   }
 
   @Public()
+  @UseGuards(OrangeMoneyWebhookGuard)
   @Post('webhooks/orange-money')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Webhook de notification Orange Money Sénégal',
-    description: 'Reçoit et traite les notifications de débit client Orange Money de manière idempotente.',
+    description: 'Reçoit et traite les notifications de débit client Orange Money de manière idempotente avec validation HMAC.',
   })
-  async handleOrangeMoneyWebhook(@Body() payload: any) {
+  async handleOrangeMoneyWebhook(@Body() payload: Record<string, unknown>) {
     return this.escrowService.handleOrangeMoneyWebhook(payload);
   }
 }

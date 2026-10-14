@@ -220,14 +220,16 @@ export class AuthService {
   private async generateTokens(userId: string, phone: string, role: string) {
     const payload = { sub: userId, phone, role };
 
+    type JwtExpiresIn = NonNullable<Parameters<JwtService['signAsync']>[1]>['expiresIn'];
+
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
         secret: process.env.JWT_ACCESS_SECRET || 'openboutik_jwt_access_super_secret_local_dev_key_2026',
-        expiresIn: (process.env.JWT_ACCESS_EXPIRES_IN || '15m') as any,
+        expiresIn: (process.env.JWT_ACCESS_EXPIRES_IN || '15m') as JwtExpiresIn,
       }),
       this.jwtService.signAsync(payload, {
         secret: process.env.JWT_REFRESH_SECRET || 'openboutik_jwt_refresh_super_secret_local_dev_key_2026',
-        expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN || '7d') as any,
+        expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN || '7d') as JwtExpiresIn,
       }),
     ]);
 
@@ -239,7 +241,7 @@ export class AuthService {
     };
   }
 
-  private sanitizeUser(user: any) {
+  private sanitizeUser<T extends { passwordHash?: string; refreshTokenHash?: string | null }>(user: T) {
     const { passwordHash: _passwordHash, refreshTokenHash: _refreshTokenHash, ...safeUser } = user;
     return safeUser;
   }

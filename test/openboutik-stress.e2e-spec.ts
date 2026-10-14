@@ -45,8 +45,8 @@ async function runIntenseStressSuite() {
     orderBy: { createdAt: 'desc' },
   });
 
-  const productShop1 = products.find((p) => p.shop.slug === 'teranga-mode')!;
-  const productShop2 = products.find((p) => p.shop.slug === 'dakar-tech-hub')!;
+  const productShop1 = products.find((p) => p.shop.slug === 'teranga-mode' && p.stock > 0)!;
+  const productShop2 = products.find((p) => p.shop.slug === 'dakar-tech-hub' && p.stock > 0)!;
 
   console.log('--- TEST 1 : RÉSISTANCE DES STOCKS & ATOMICITÉ ---');
   try {

@@ -209,6 +209,7 @@ model Product {
   orderItems         OrderItem[]
 
   @@unique([shopId, slug])
+  @@index([isPublished, priceFcfa])
   @@map("products")
 }
 
@@ -278,6 +279,8 @@ model Order {
   escrow                   EscrowTransaction?
   dispute                  Dispute?
 
+  @@index([status])
+  @@index([createdAt])
   @@map("orders")
 }
 
@@ -331,7 +334,7 @@ model EscrowTransaction {
 model VendorWallet {
   id                   String         @id @default(uuid())
   shopId               String         @unique
-  shop                 Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  shop                 Shop           @relation(fields: [shopId], references: [id], onDelete: Restrict)
   
   escrowBalanceFcfa    Int            @default(0) // Argent bloqué en attente de livraison
   availableBalanceFcfa Int            @default(0) // Argent net disponible immédiatement au retrait
@@ -408,5 +411,7 @@ model AuditLog {
 
   createdAt  DateTime @default(now())
 
+  @@index([entityType, entityId])
+  @@index([createdAt])
   @@map("audit_logs")
 }

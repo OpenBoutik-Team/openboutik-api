@@ -4,7 +4,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateShopDto } from './dto/update-shop.dto';
-import { OrderStatus } from '../generated/prisma/client';
+import { Prisma, OrderStatus } from '../generated/prisma/client';
 
 @Injectable()
 export class ShopsService {
@@ -14,7 +14,7 @@ export class ShopsService {
    * Liste publique des boutiques actives sur la marketplace (Dev 1)
    */
   async getAllShops(query: { search?: string; isVerified?: boolean; city?: string }) {
-    const where: any = { isActive: true };
+    const where: Prisma.ShopWhereInput = { isActive: true };
 
     if (query.city) {
       where.city = { contains: query.city };

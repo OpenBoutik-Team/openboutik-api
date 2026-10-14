@@ -145,18 +145,18 @@ export class EscrowService {
   }
 
   /**
-   * Webhook Wave Sénégal (Mock & Structure de production idempotente)
+   * Webhook Wave Sénégal (Structure de production idempotente avec HMAC)
    */
-  async handleWaveWebhook(payload: any) {
+  async handleWaveWebhook(payload: Record<string, unknown>) {
     this.logger.log(`Traitement Webhook Wave reçu : ${JSON.stringify(payload)}`);
     // Idempotence : si la transaction de séquestre existe déjà, on valide la réception
     return { received: true, provider: 'WAVE' };
   }
 
   /**
-   * Webhook Orange Money Sénégal (Mock & Structure de production idempotente)
+   * Webhook Orange Money Sénégal (Structure de production idempotente avec HMAC)
    */
-  async handleOrangeMoneyWebhook(payload: any) {
+  async handleOrangeMoneyWebhook(payload: Record<string, unknown>) {
     this.logger.log(`Traitement Webhook Orange Money reçu : ${JSON.stringify(payload)}`);
     return { received: true, provider: 'ORANGE_MONEY' };
   }

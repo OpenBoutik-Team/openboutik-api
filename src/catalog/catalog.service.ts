@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { Prisma } from '../generated/prisma/client';
 import { QueryProductsDto, ProductSortBy } from './dto/query-products.dto';
 import { CreateCategoryDto } from './dto/create-category.dto';
 
@@ -19,7 +20,7 @@ export class CatalogService {
   // ----------------------------------------------------------------------------
 
   async getCategories(shopSlug?: string) {
-    const where: any = {};
+    const where: Prisma.CategoryWhereInput = {};
     if (shopSlug) {
       where.shop = { slug: shopSlug.toLowerCase().trim() };
     }
@@ -87,21 +88,25 @@ export class CatalogService {
     const limit = Math.max(1, Math.min(50, query.limit || 12));
     const skip = (page - 1) * limit;
 
-    const where: any = {
+    const where: Prisma.ProductWhereInput = {
       isPublished: true,
-      shop: { isActive: true },
+      shop: { is: { isActive: true } },
     };
 
     if (query.shopSlug) {
       where.shop = {
-        ...where.shop,
-        slug: query.shopSlug.toLowerCase().trim(),
+        is: {
+          isActive: true,
+          slug: query.shopSlug.toLowerCase().trim(),
+        },
       };
     }
 
     if (query.categorySlug) {
       where.category = {
-        slug: query.categorySlug.toLowerCase().trim(),
+        is: {
+          slug: query.categorySlug.toLowerCase().trim(),
+        },
       };
     }
 
@@ -110,9 +115,10 @@ export class CatalogService {
     }
 
     if (query.minPrice !== undefined || query.maxPrice !== undefined) {
-      where.priceFcfa = {};
-      if (query.minPrice !== undefined) where.priceFcfa.gte = query.minPrice;
-      if (query.maxPrice !== undefined) where.priceFcfa.lte = query.maxPrice;
+      const priceFilter: Prisma.IntFilter = {};
+      if (query.minPrice !== undefined) priceFilter.gte = query.minPrice;
+      if (query.maxPrice !== undefined) priceFilter.lte = query.maxPrice;
+      where.priceFcfa = priceFilter;
     }
 
     if (query.search) {
@@ -123,7 +129,7 @@ export class CatalogService {
     }
 
     // Gestion du tri
-    let orderBy: any = { createdAt: 'desc' };
+    let orderBy: Prisma.ProductOrderByWithRelationInput = { createdAt: 'desc' };
     if (query.sortBy === ProductSortBy.PRICE_ASC) {
       orderBy = { priceFcfa: 'asc' };
     } else if (query.sortBy === ProductSortBy.PRICE_DESC) {

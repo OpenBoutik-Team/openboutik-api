@@ -8,12 +8,39 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CheckoutDto } from './dto/checkout.dto';
 import { ConfirmDeliveryDto } from './dto/confirm-delivery.dto';
 import {
+  Order,
   OrderStatus,
   EscrowStatus,
   DeliveryMethod,
   SubscriptionPlan,
   Role,
 } from '../generated/prisma/client';
+
+export interface PreparedOrderItemData {
+  productId: string;
+  productName: string;
+  unitPriceFcfa: number;
+  quantity: number;
+  totalPriceFcfa: number;
+}
+
+export interface PreparedOrderData {
+  shopId: string;
+  orderNumber: string;
+  subtotalFcfa: number;
+  deliveryFeeFcfa: number;
+  totalAmountFcfa: number;
+  commissionRate: number;
+  commissionAmountFcfa: number;
+  netVendorAmountFcfa: number;
+  deliveryMethod: DeliveryMethod;
+  deliveryAddress: string;
+  deliveryCity: string;
+  deliveryPhone: string;
+  deliveryNotes?: string;
+  deliveryConfirmationCode: string;
+  items: PreparedOrderItemData[];
+}
 
 @Injectable()
 export class OrdersService {
@@ -44,8 +71,12 @@ export class OrdersService {
       throw new BadRequestException('Certains produits du panier sont introuvables ou indisponibles');
     }
 
-    // Vérification des stocks pour chaque produit
+    // Vérification des stocks et des quantités pour chaque produit
     for (const item of dto.items) {
+      if (!item.quantity || item.quantity <= 0) {
+        throw new BadRequestException('La quantité commandée doit être un entier strictement supérieur à 0');
+      }
+
       const prod = products.find((p) => p.id === item.productId);
       if (!prod || prod.stock < item.quantity) {
         throw new BadRequestException(
@@ -65,24 +96,31 @@ export class OrdersService {
 
     // 3. Exécution de la transaction ACID globale
     const createdOrders = await this.prisma.$transaction(async (tx) => {
-      // Décrémenter les stocks physiques
+      // Décrémenter les stocks physiques avec vérification atomique anti-concurrence
       for (const item of dto.items) {
-        await tx.product.update({
+        const prod = products.find((p) => p.id === item.productId)!;
+        const updatedProduct = await tx.product.update({
           where: { id: item.productId },
           data: { stock: { decrement: item.quantity } },
         });
+
+        if (updatedProduct.stock < 0) {
+          throw new BadRequestException(
+            `Rupture de stock concurrente pour l’article "${prod.name}". Stock restant insuffisant.`,
+          );
+        }
       }
 
       // Création de la CheckoutSession globale
       let grandTotalFcfa = 0;
-      const ordersToCreate: any[] = [];
+      const ordersToCreate: PreparedOrderData[] = [];
 
       for (const [shopId, shopProducts] of shopGroups.entries()) {
         const shop = shopProducts[0].shop;
 
         // Calcul sous-total de cette boutique
         let shopSubtotal = 0;
-        const orderItemsData: any[] = [];
+        const orderItemsData: PreparedOrderItemData[] = [];
 
         for (const prod of shopProducts) {
           const itemDto = dto.items.find((i) => i.productId === prod.id)!;
@@ -152,7 +190,7 @@ export class OrdersService {
       });
 
       // Création des sous-commandes et de leurs transactions de séquestre
-      const results: any[] = [];
+      const results: Order[] = [];
       for (const orderData of ordersToCreate) {
         const order = await tx.order.create({
           data: {
@@ -415,23 +453,44 @@ export class OrdersService {
 
     // Transaction ACID : Libération du séquestre et versement vers le VendorWallet
     const updatedOrder = await this.prisma.$transaction(async (tx) => {
-      // 1. Mettre à jour la commande
-      const confirmedOrder = await tx.order.update({
-        where: { id: order.id },
+      // 1. Mettre à jour la commande avec garde atomique au niveau SQL
+      const orderUpdate = await tx.order.updateMany({
+        where: {
+          id: order.id,
+          status: {
+            notIn: [
+              OrderStatus.DELIVERED_CONFIRMED,
+              OrderStatus.DISPUTED,
+              OrderStatus.REFUNDED,
+              OrderStatus.CANCELLED,
+            ],
+          },
+        },
         data: {
           status: OrderStatus.DELIVERED_CONFIRMED,
           deliveredAt: new Date(),
         },
       });
 
-      // 2. Mettre à jour la transaction de séquestre
-      await tx.escrowTransaction.update({
-        where: { orderId: order.id },
+      if (orderUpdate.count === 0) {
+        throw new BadRequestException('Cette commande a déjà été confirmée ou fait l’objet d’un litige');
+      }
+
+      // 2. Mettre à jour la transaction de séquestre avec garde atomique
+      const escrowUpdate = await tx.escrowTransaction.updateMany({
+        where: {
+          orderId: order.id,
+          status: EscrowStatus.HELD_IN_ESCROW,
+        },
         data: {
           status: EscrowStatus.RELEASED_TO_VENDOR,
           releasedAt: new Date(),
         },
       });
+
+      if (escrowUpdate.count === 0) {
+        throw new BadRequestException('Le séquestre de cette commande n’est plus en attente de libération');
+      }
 
       // 3. Débloquer l'argent dans le portefeuille du vendeur
       await tx.vendorWallet.update({
@@ -457,6 +516,11 @@ export class OrdersService {
             validatedByRole: userRole,
           },
         },
+      });
+
+      const confirmedOrder = await tx.order.findUnique({
+        where: { id: order.id },
+        include: { escrow: true },
       });
 
       return confirmedOrder;

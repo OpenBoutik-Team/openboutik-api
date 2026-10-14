@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RequestPayoutDto } from './dto/request-payout.dto';
-import { PayoutStatus } from '../generated/prisma/client';
+import { Prisma, PayoutStatus } from '../generated/prisma/client';
 
 @Injectable()
 export class WalletsService {
@@ -53,6 +53,10 @@ export class WalletsService {
       throw new NotFoundException('Boutique ou portefeuille introuvable');
     }
 
+    if (!dto.amountFcfa || dto.amountFcfa <= 0) {
+      throw new BadRequestException('Le montant du retrait doit être un entier strictement supérieur à 0 FCFA');
+    }
+
     if (dto.amountFcfa > shop.wallet.availableBalanceFcfa) {
       throw new BadRequestException(
         `Solde insuffisant. Vous disposez de ${shop.wallet.availableBalanceFcfa} FCFA disponibles, mais vous avez demandé un retrait de ${dto.amountFcfa} FCFA.`,
@@ -62,13 +66,19 @@ export class WalletsService {
     const providerReference = `${dto.provider}_PAYOUT_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
 
     const result = await this.prisma.$transaction(async (tx) => {
-      // 1. Débiter immédiatement le solde disponible
+      // 1. Débiter immédiatement le solde disponible avec contrôle atomique anti-double-dépense
       const updatedWallet = await tx.vendorWallet.update({
         where: { id: shop.wallet!.id },
         data: {
           availableBalanceFcfa: { decrement: dto.amountFcfa },
         },
       });
+
+      if (updatedWallet.availableBalanceFcfa < 0) {
+        throw new BadRequestException(
+          `Solde insuffisant lors du traitement de retrait concurrent. Le solde ne peut pas être négatif.`,
+        );
+      }
 
       // 2. Créer l'enregistrement de décaissement (statut PROCESSED pour sandbox/dev immédiat)
       const payout = await tx.walletPayout.create({
@@ -112,7 +122,7 @@ export class WalletsService {
    * Supervision globale de tous les retraits pour le Super-Admin
    */
   async getAllPayouts(status?: PayoutStatus) {
-    const where: any = {};
+    const where: Prisma.WalletPayoutWhereInput = {};
     if (status) {
       where.status = status;
     }

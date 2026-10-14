@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { OpenDisputeDto } from './dto/open-dispute.dto';
 import { ArbitrateDisputeDto, DisputeDecision } from './dto/arbitrate-dispute.dto';
 import {
+  Prisma,
   OrderStatus,
   EscrowStatus,
   DisputeStatus,
@@ -54,20 +55,41 @@ export class DisputesService {
 
     // Transaction ACID : Gel du séquestre et passage de la commande en litige
     const dispute = await this.prisma.$transaction(async (tx) => {
-      // 1. Passer la commande en DISPUTED
-      await tx.order.update({
-        where: { id: order.id },
+      // 1. Passer la commande en DISPUTED avec garde atomique au niveau SQL
+      const orderUpdate = await tx.order.updateMany({
+        where: {
+          id: order.id,
+          status: {
+            notIn: [
+              OrderStatus.DELIVERED_CONFIRMED,
+              OrderStatus.DISPUTED,
+              OrderStatus.REFUNDED,
+              OrderStatus.CANCELLED,
+            ],
+          },
+        },
         data: { status: OrderStatus.DISPUTED },
       });
 
-      // 2. Geler le séquestre (neutralise tout déblocage)
-      await tx.escrowTransaction.update({
-        where: { orderId: order.id },
+      if (orderUpdate.count === 0) {
+        throw new BadRequestException('Impossible d’ouvrir un litige : la commande est déjà confirmée livrée ou déjà en litige');
+      }
+
+      // 2. Geler le séquestre avec garde atomique (neutralise tout déblocage)
+      const escrowUpdate = await tx.escrowTransaction.updateMany({
+        where: {
+          orderId: order.id,
+          status: EscrowStatus.HELD_IN_ESCROW,
+        },
         data: {
           status: EscrowStatus.FROZEN_BY_DISPUTE,
           frozenAt: new Date(),
         },
       });
+
+      if (escrowUpdate.count === 0) {
+        throw new BadRequestException('Le séquestre de cette commande ne peut plus être gelé');
+      }
 
       // 3. Créer l'enregistrement du litige
       const createdDispute = await tx.dispute.create({
@@ -112,7 +134,7 @@ export class DisputesService {
    * Liste complète des litiges pour le back-office Super-Admin
    */
   async getAllDisputes(status?: DisputeStatus) {
-    const where: any = {};
+    const where: Prisma.DisputeWhereInput = {};
     if (status) {
       where.status = status;
     }
