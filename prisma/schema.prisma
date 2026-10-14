@@ -1,5 +1,6 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// ==============================================================================
+// OPENBOUTIK — SCHEMA DE BASE DE DONNÉES PRISMA (MySQL InnoDB)
+// ==============================================================================
 
 generator client {
   provider = "prisma-client"
@@ -8,4 +9,404 @@ generator client {
 
 datasource db {
   provider = "mysql"
+}
+
+// ------------------------------------------------------------------------------
+// ENUMS
+// ------------------------------------------------------------------------------
+
+enum Role {
+  CLIENT
+  VENDOR
+  SUPER_ADMIN
+}
+
+enum SubscriptionPlan {
+  FREE
+  PRO
+  PREMIUM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID_ESCROW
+  PREPARING
+  SHIPPED_TIAK_TIAK
+  DELIVERED_CONFIRMED
+  DISPUTED
+  REFUNDED
+  CANCELLED
+}
+
+enum EscrowStatus {
+  HELD_IN_ESCROW
+  RELEASED_TO_VENDOR
+  FROZEN_BY_DISPUTE
+  REFUNDED_TO_CLIENT
+}
+
+enum PaymentProvider {
+  WAVE
+  ORANGE_MONEY
+}
+
+enum DeliveryMethod {
+  TIAK_TIAK
+  PICKUP
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED_REFUND_CLIENT
+  RESOLVED_RELEASE_VENDOR
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSED
+  REJECTED
+}
+
+// ------------------------------------------------------------------------------
+// UTILISATEURS & AUTHENTIFICATION
+// ------------------------------------------------------------------------------
+
+model User {
+  id               String    @id @default(uuid())
+  email            String?   @unique
+  phone            String    @unique // Format standard: +22177XXXXXXX
+  passwordHash     String
+  fullName         String
+  role             Role      @default(CLIENT)
+  isActive         Boolean   @default(true)
+  refreshTokenHash String?
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  shop                 Shop?
+  checkoutSessions     CheckoutSession[]
+  clientOrders         Order[]           @relation("ClientOrders")
+  disputes             Dispute[]         @relation("ClientDisputes")
+  arbitratedDisputes   Dispute[]         @relation("SuperAdminArbitrations")
+  auditLogs            AuditLog[]
+
+  @@map("users")
+}
+
+// ------------------------------------------------------------------------------
+// BOUTIQUES & SAAS MARCHAND
+// ------------------------------------------------------------------------------
+
+model Shop {
+  id               String           @id @default(uuid())
+  ownerId          String           @unique
+  owner            User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  
+  name             String
+  slug             String           @unique // Accessible via /boutique/[slug]
+  description      String?          @db.Text
+  logoUrl          String?
+  bannerUrl        String?
+  primaryColor     String?          @default("#10B981")
+  
+  whatsappNumber   String           // Numéro WhatsApp pour contact direct (+221...)
+  waveNumber       String?          // Numéro Wave pour réceptions & retraits
+  omNumber         String?          // Numéro Orange Money pour retraits
+  
+  address          String?
+  city             String           @default("Dakar")
+  isVerified       Boolean          @default(false)
+  isActive         Boolean          @default(true)
+  
+  subscriptionPlan SubscriptionPlan @default(FREE)
+
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  // Relations
+  wallet           VendorWallet?
+  subscriptions    Subscription[]
+  categories       Category[]
+  products         Product[]
+  orders           Order[]
+
+  @@map("shops")
+}
+
+model Subscription {
+  id                String             @id @default(uuid())
+  shopId            String
+  shop              Shop               @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  plan              SubscriptionPlan
+  status            SubscriptionStatus @default(ACTIVE)
+  priceFcfa         Int                // Montant en FCFA (ex: 15000 pour PRO)
+  
+  startDate         DateTime           @default(now())
+  endDate           DateTime
+  paymentProvider   PaymentProvider?
+  providerReference String?
+
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@map("subscriptions")
+}
+
+// ------------------------------------------------------------------------------
+// CATALOGUE PRODUITS
+// ------------------------------------------------------------------------------
+
+model Category {
+  id        String    @id @default(uuid())
+  shopId    String?   // null = Catégorie globale marketplace, sinon spécifique à une boutique
+  shop      Shop?     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  name      String
+  slug      String
+  imageUrl  String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  products  Product[]
+
+  @@unique([shopId, slug])
+  @@map("categories")
+}
+
+model Product {
+  id                 String      @id @default(uuid())
+  shopId             String
+  shop               Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  categoryId         String?
+  category           Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  
+  name               String
+  slug               String
+  description        String?     @db.Text
+  
+  priceFcfa          Int         // Entier strict en FCFA (ex: 25000)
+  compareAtPriceFcfa Int?        // Prix barré éventuel
+  stock              Int         @default(0)
+  images             Json        // Tableau d'URLs JSON ["https://..."]
+  
+  isPublished        Boolean     @default(true)
+
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  orderItems         OrderItem[]
+
+  @@unique([shopId, slug])
+  @@map("products")
+}
+
+// ------------------------------------------------------------------------------
+// SESSIONS DE CHECKOUT, COMMANDES & SÉQUESTRE (ESCROW)
+// ------------------------------------------------------------------------------
+
+model CheckoutSession {
+  id                String          @id @default(uuid())
+  clientId          String
+  client            User            @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  
+  totalAmountFcfa   Int             // Montant total du panier client en FCFA
+  paymentProvider   PaymentProvider
+  providerReference String?         @unique // Référence Wave / OM pour idempotence
+  
+  isPaid            Boolean         @default(false)
+  paidAt            DateTime?
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  orders            Order[]
+
+  @@map("checkout_sessions")
+}
+
+model Order {
+  id                       String            @id @default(uuid())
+  orderNumber              String            @unique // Ex: OB-2026-0001
+  
+  checkoutSessionId        String?
+  checkoutSession          CheckoutSession?  @relation(fields: [checkoutSessionId], references: [id], onDelete: SetNull)
+  
+  clientId                 String
+  client                   User              @relation("ClientOrders", fields: [clientId], references: [id], onDelete: Restrict)
+  
+  shopId                   String
+  shop                     Shop              @relation(fields: [shopId], references: [id], onDelete: Restrict)
+  
+  // Données financières figées (Snapshots immuables)
+  subtotalFcfa             Int
+  deliveryFeeFcfa          Int               @default(0)
+  totalAmountFcfa          Int
+  commissionRate           Int               // 5 pour 5%, 3 pour 3%, etc.
+  commissionAmountFcfa     Int
+  netVendorAmountFcfa      Int
+  
+  // Logistique Tiak-Tiak
+  deliveryMethod           DeliveryMethod    @default(TIAK_TIAK)
+  deliveryAddress          String
+  deliveryCity             String            @default("Dakar")
+  deliveryPhone            String            // Contact pour le livreur (+221...)
+  deliveryNotes            String?
+  deliveryConfirmationCode String            // Code OTP (6 chiffres) remis au livreur
+  
+  status                   OrderStatus       @default(PENDING_PAYMENT)
+  shippedAt                DateTime?
+  deliveredAt              DateTime?
+  autoReleaseAt            DateTime?         // Date limite (shippedAt + 48h) pour auto-déblocage
+
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+
+  // Relations
+  items                    OrderItem[]
+  escrow                   EscrowTransaction?
+  dispute                  Dispute?
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id            String   @id @default(uuid())
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  productId     String?
+  product       Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  
+  productName   String   // Snapshot du nom du produit au moment de l'achat
+  unitPriceFcfa Int      // Snapshot du prix unitaire en FCFA
+  quantity      Int
+  totalPriceFcfa Int
+
+  createdAt     DateTime @default(now())
+
+  @@map("order_items")
+}
+
+model EscrowTransaction {
+  id                   String          @id @default(uuid())
+  orderId              String          @unique
+  order                Order           @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  
+  totalAmountFcfa      Int             // Total séquestré
+  commissionAmountFcfa Int             // Part OpenBoutik
+  netVendorAmountFcfa  Int             // Part due au marchand
+  
+  paymentProvider      PaymentProvider
+  providerReference    String?         @unique // Référence de transaction Wave/OM
+  
+  status               EscrowStatus    @default(HELD_IN_ESCROW)
+  
+  heldAt               DateTime        @default(now())
+  releasedAt           DateTime?
+  frozenAt             DateTime?
+  refundedAt           DateTime?
+
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  @@map("escrow_transactions")
+}
+
+// ------------------------------------------------------------------------------
+// PORTEFEUILLE VENDEUR & RETRAITS MOBILE MONEY
+// ------------------------------------------------------------------------------
+
+model VendorWallet {
+  id                   String         @id @default(uuid())
+  shopId               String         @unique
+  shop                 Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  escrowBalanceFcfa    Int            @default(0) // Argent bloqué en attente de livraison
+  availableBalanceFcfa Int            @default(0) // Argent net disponible immédiatement au retrait
+  totalEarnedFcfa      Int            @default(0) // Historique cumulé des gains nets
+
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  payouts              WalletPayout[]
+
+  @@map("vendor_wallets")
+}
+
+model WalletPayout {
+  id                String          @id @default(uuid())
+  walletId          String
+  wallet            VendorWallet    @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  
+  amountFcfa        Int             // Montant du retrait demandé en FCFA
+  provider          PaymentProvider // Wave ou Orange Money
+  recipientPhone    String          // Numéro de réception (+221...)
+  status            PayoutStatus    @default(PENDING)
+  providerReference String?         // Référence de transfert
+  processedAt       DateTime?
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@map("wallet_payouts")
+}
+
+// ------------------------------------------------------------------------------
+// LITIGES & ARBITRAGE SUPER-ADMIN
+// ------------------------------------------------------------------------------
+
+model Dispute {
+  id             String        @id @default(uuid())
+  orderId        String        @unique
+  order          Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  
+  clientId       String
+  client         User          @relation("ClientDisputes", fields: [clientId], references: [id], onDelete: Restrict)
+  
+  reason         String        @db.Text // Motif : Produit non reçu, non conforme, colis abîmé...
+  evidenceUrls   Json?         // Photos ou preuves fournies par le client
+  status         DisputeStatus @default(OPEN)
+  
+  // Arbitrage par l'équipe Super-Admin
+  arbitratedById String?
+  arbitratedBy   User?         @relation("SuperAdminArbitrations", fields: [arbitratedById], references: [id], onDelete: SetNull)
+  decisionNotes  String?       @db.Text
+  resolvedAt     DateTime?
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@map("disputes")
+}
+
+// ------------------------------------------------------------------------------
+// LOGS D'AUDIT & TRAÇABILITÉ SÉCURITÉ
+// ------------------------------------------------------------------------------
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  action     String   // ESCROW_RELEASED, DISPUTE_ARBITRATED, SHOP_SUSPENDED, PAYOUT_PROCESSED...
+  entityType String   // ORDER, ESCROW, SHOP, DISPUTE, WALLET
+  entityId   String
+  metadata   Json?    // Détails de l'action pour historique immuable
+  ipAddress  String?
+
+  createdAt  DateTime @default(now())
+
+  @@map("audit_logs")
 }
