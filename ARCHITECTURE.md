@@ -162,3 +162,84 @@ Les commissions sont prélevées automatiquement lors du déblocage du séquestr
 * **Idempotence des Webhooks :** Vérification stricte des signatures Wave / OM et stockage des identifiants de transaction fournisseurs pour refuser tout doublon.
 * **Authentification :** JWT avec Access Token (15 min) et Refresh Token hashé en BDD (7 jours).
 * **Validation des entrées :** `ValidationPipe` global avec rejet des propriétés non déclarées (`whitelist: true`, `forbidNonWhitelisted: true`).
+
+---
+
+## 9. CATALOGUE EXHAUSTIF DES ENDPOINTS PAR PÔLE
+
+### A. Pôle Dev 1 — Marketplace Client (`openboutik-marketplace` • Port 3000)
+
+| Méthode | Endpoint | Accès | Description & Rôle |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/auth/register/client` | Public | Inscription d'un acheteur avec téléphone sénégalais (`+221...`). |
+| `POST` | `/api/v1/auth/login` | Public | Connexion par téléphone ou email + mot de passe (retourne JWT). |
+| `POST` | `/api/v1/auth/refresh` | Public | Renouvellement transparent de l'Access Token. |
+| `GET` | `/api/v1/auth/me` | `CLIENT` | Profil de l'acheteur connecté. |
+| `POST` | `/api/v1/auth/logout` | `CLIENT` | Déconnexion et révocation du Refresh Token. |
+| `GET` | `/api/v1/shops` | Public | Annuaire des boutiques actives avec filtres (recherche, ville, certifiée). |
+| `GET` | `/api/v1/shops/:slug` | Public | Vitrine dédiée d'une boutique avec son catalogue et contact WhatsApp. |
+| `GET` | `/api/v1/products` | Public | Moteur de recherche et filtres de produits paginé (prix FCFA, tri). |
+| `GET` | `/api/v1/products/:shopSlug/:productSlug` | Public | Fiche produit détaillée avec données de négociation WhatsApp. |
+| `GET` | `/api/v1/categories` | Public | Liste des catégories avec compteurs de produits. |
+| `POST` | `/api/v1/orders/checkout` | `CLIENT` | Validation du panier, réservation des stocks et création du séquestre. |
+| `GET` | `/api/v1/orders/client/me` | `CLIENT` | Historique des commandes du client, livraisons Tiak-Tiak et codes OTP. |
+| `GET` | `/api/v1/orders/:id` | `CLIENT` | Détail d'une commande spécifique. |
+| `POST` | `/api/v1/orders/:id/confirm-delivery` | `CLIENT` | Validation de la réception -> Déblocage instantané du séquestre au marchand. |
+| `POST` | `/api/v1/disputes/:orderId` | `CLIENT` | Signalement d'un litige (produit non reçu / non conforme) -> Gèle le séquestre. |
+| `GET` | `/api/v1/disputes/:id` | `CLIENT` | Consultation du statut de son litige. |
+
+### B. Pôle Dev 2 — Espace Vendeur SaaS (`openboutik-seller` • Port 3001)
+
+| Méthode | Endpoint | Accès | Description & Rôle |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/auth/register/vendor` | Public | Inscription marchand en transaction ACID (User + Boutique + Portefeuille). |
+| `POST` | `/api/v1/auth/login` | Public | Connexion commerçant. |
+| `GET` | `/api/v1/shops/vendor/me` | `VENDOR` | Tableau de bord vendeur : métriques de ventes, commandes et soldes portefeuilles. |
+| `PATCH` | `/api/v1/shops/vendor/me` | `VENDOR` | Personnalisation de la boutique (nom, WhatsApp, numéros Wave/OM, logo, bannière, couleur HEX). |
+| `GET` | `/api/v1/subscriptions/plans` | Public | Grille tarifaire des abonnements SaaS (`FREE`: 4 %, `PRO`: 3 %, `PREMIUM`: 2 %). |
+| `POST` | `/api/v1/subscriptions/upgrade` | `VENDOR` | Passage au forfait PRO ou PREMIUM avec réduction de commission. |
+| `POST` | `/api/v1/products` | `VENDOR` | Ajout d'un article au catalogue (prix entier FCFA, stock, photos). |
+| `PATCH` | `/api/v1/products/:id` | `VENDOR` | Modification d'un produit (avec sécurité d'ownership). |
+| `PATCH` | `/api/v1/products/:id/stock` | `VENDOR` | Ajustement rapide du stock physique. |
+| `DELETE` | `/api/v1/products/:id` | `VENDOR` | Suppression d'un produit. |
+| `POST` | `/api/v1/categories` | `VENDOR` | Création d'une catégorie personnalisée pour sa boutique. |
+| `GET` | `/api/v1/orders/vendor/me` | `VENDOR` | Suivi des commandes reçues (filtre par statut : payée, expédiée, livrée). |
+| `PATCH` | `/api/v1/orders/:id/prepare` | `VENDOR` | Prise en charge de la préparation du colis (`PREPARING`). |
+| `PATCH` | `/api/v1/orders/:id/ship` | `VENDOR` | Remise au livreur moto Tiak-Tiak (`SHIPPED_TIAK_TIAK`) + timer 48h. |
+| `POST` | `/api/v1/orders/:id/confirm-delivery` | `VENDOR` | Validation de livraison par saisie du code OTP 6 chiffres remis par le client. |
+| `GET` | `/api/v1/wallets/me` | `VENDOR` | Consultation du portefeuille (solde bloqué séquestre vs solde disponible). |
+| `POST` | `/api/v1/wallets/payout` | `VENDOR` | Demande de transfert vers Wave ou Orange Money en transaction ACID. |
+
+### C. Pôle Dev 2 / Équipe Core — Back-Office Super-Admin (Port 3001)
+
+| Méthode | Endpoint | Accès | Description & Rôle |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/auth/login` | Public | Connexion avec identifiants Super-Admin. |
+| `GET` | `/api/v1/escrow/overview` | `SUPER_ADMIN` | Supervision en direct de la trésorerie globale séquestrée et commissions perçues. |
+| `POST` | `/api/v1/escrow/auto-release` | `SUPER_ADMIN` | Déclenchement du filet de sécurité (auto-déblocage après 48h sans litige). |
+| `PATCH` | `/api/v1/shops/:id/verify` | `SUPER_ADMIN` | Attribution ou révocation du badge certifié marchand vérifié + Audit Log. |
+| `GET` | `/api/v1/disputes` | `SUPER_ADMIN` | Tableau de bord de tous les litiges ouverts avec pièces justificatives. |
+| `POST` | `/api/v1/disputes/:id/arbitrate` | `SUPER_ADMIN` | Arbitrage officiel : Remboursement client (`REFUND_CLIENT`) OU versement marchand (`RELEASE_VENDOR`). |
+| `GET` | `/api/v1/wallets/admin/payouts` | `SUPER_ADMIN` | Historique et contrôle de tous les décaissements Mobile Money de la plateforme. |
+
+---
+
+## 10. COMPTES DE TEST DU SEED (PRÉCONFIGURÉS)
+
+> **Mot de passe universel de test :** `Passer123!`
+
+1. **Super-Admin (Équipe Dev OpenBoutik) :**
+   * **Identifiant :** `admin@openboutik.sn` ou `+221770000001`
+   * **Rôle :** `SUPER_ADMIN`
+2. **Vendeur 1 — Boutique « Teranga Mode » (Médina, Dakar) :**
+   * **Identifiant :** `moussa.diop@terangamode.sn` ou `+221771234567`
+   * **Slug vitrine :** `teranga-mode` (Plan `PRO` - 3 % commission)
+   * **WhatsApp :** `+221771234567`
+3. **Vendeur 2 — Boutique « Dakar Tech Hub » (Plateau, Dakar) :**
+   * **Identifiant :** `aminata.sow@dakartech.sn` ou `+221789876543`
+   * **Slug vitrine :** `dakar-tech-hub` (Plan `FREE` - 4 % commission)
+   * **WhatsApp :** `+221789876543`
+4. **Client Acheteur (Mermoz, Dakar) :**
+   * **Identifiant :** `client.fatou@gmail.com` ou `+221765432109`
+   * **Rôle :** `CLIENT`
+
