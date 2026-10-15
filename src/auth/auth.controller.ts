@@ -60,6 +60,19 @@ export class AuthController {
     return this.authService.registerVendor(dto);
   }
 
+  @Post('register')
+  @ApiOperation({
+    summary: 'Inscription vendeur (alias d’onboarding Étape 0 pour openboutik-seller)',
+    description: 'Création du compte marchand avec acceptation obligatoire des conditions générales de vente et séquestre (commission de 2 % à 4 %).',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Compte vendeur créé avec succès',
+  })
+  async register(@Body() dto: RegisterVendorDto) {
+    return this.authService.registerVendor(dto);
+  }
+
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

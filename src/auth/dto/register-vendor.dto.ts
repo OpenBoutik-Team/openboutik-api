@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsOptional, IsString, Matches, MinLength } from 'class-validator';
+import { Equals, IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, Matches, MinLength } from 'class-validator';
 
 export class RegisterVendorDto {
   @ApiProperty({
@@ -38,37 +38,54 @@ export class RegisterVendorDto {
   @MinLength(6, { message: 'Le mot de passe doit comporter au moins 6 caractères' })
   password: string;
 
-  // --- Données de la boutique SaaS ---
-
   @ApiProperty({
+    example: true,
+    description: 'Acceptation obligatoire des conditions générales d’utilisation et des commissions de séquestre (2 % à 4 %)',
+  })
+  @IsNotEmpty({ message: 'Vous devez accepter les conditions générales d’utilisation' })
+  @IsBoolean({ message: 'L’acceptation des conditions doit être un booléen' })
+  @Equals(true, { message: 'Vous devez accepter les conditions générales et le fonctionnement du séquestre (commission de 2 % à 4 %)' })
+  acceptTerms: boolean;
+
+  // --- Données initiales optionnelles de la boutique (Étape 1 pré-remplie si fournie) ---
+
+  @ApiPropertyOptional({
     example: 'Teranga Mode',
     description: 'Nom commercial de la boutique',
   })
-  @IsNotEmpty({ message: 'Le nom de la boutique est requis' })
+  @IsOptional()
   @IsString()
-  shopName: string;
+  shopName?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 'teranga-mode',
     description: 'Identifiant URL unique de la boutique (ex: openboutik.sn/boutique/teranga-mode)',
   })
-  @IsNotEmpty({ message: 'Le slug de la boutique est requis' })
+  @IsOptional()
   @IsString()
   @Matches(/^[a-z0-9-]+$/, {
     message: 'Le slug ne doit contenir que des lettres minuscules, chiffres et tirets (sans espaces)',
   })
-  shopSlug: string;
+  shopSlug?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
+    example: 'Mode & Prêt-à-porter',
+    description: 'Catégorie principale de la boutique (ex: Mode, Électronique, Alimentation, Cosmétique...)',
+  })
+  @IsOptional()
+  @IsString()
+  mainCategory?: string;
+
+  @ApiPropertyOptional({
     example: '+221771234567',
     description: 'Numéro WhatsApp de contact client (+221XXXXXXXXX)',
   })
-  @IsNotEmpty({ message: 'Le numéro WhatsApp de la boutique est requis' })
+  @IsOptional()
   @IsString()
   @Matches(/^\+221[0-9]{9}$/, {
     message: 'Le numéro WhatsApp doit être au format sénégalais +221XXXXXXXXX',
   })
-  whatsappNumber: string;
+  whatsappNumber?: string;
 
   @ApiPropertyOptional({
     example: 'Rue 11 angle Blaise Diagne, Médina',
@@ -87,3 +104,4 @@ export class RegisterVendorDto {
   @IsString()
   city?: string;
 }
+

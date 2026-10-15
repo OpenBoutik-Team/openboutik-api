@@ -74,6 +74,13 @@ enum PayoutStatus {
   REJECTED
 }
 
+enum KycStatus {
+  NONE
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
 // ------------------------------------------------------------------------------
 // UTILISATEURS & AUTHENTIFICATION
 // ------------------------------------------------------------------------------
@@ -87,6 +94,7 @@ model User {
   role             Role      @default(CLIENT)
   isActive         Boolean   @default(true)
   refreshTokenHash String?
+  acceptedTermsAt  DateTime? // Horodatage acceptation CGU & Séquestre
 
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -114,13 +122,27 @@ model Shop {
   name             String
   slug             String           @unique // Accessible via /boutique/[slug]
   description      String?          @db.Text
+  mainCategory     String?          // Ex: Mode, Électronique, Alimentation, Cosmétique, Services...
   logoUrl          String?
   bannerUrl        String?
   primaryColor     String?          @default("#10B981")
   
-  whatsappNumber   String           // Numéro WhatsApp pour contact direct (+221...)
+  whatsappNumber   String?          // Numéro WhatsApp pour contact direct (+221...)
   waveNumber       String?          // Numéro Wave pour réceptions & retraits
   omNumber         String?          // Numéro Orange Money pour retraits
+  payoutHolderName String?          // Nom complet du titulaire Wave/Orange Money
+  
+  // Machine à états Onboarding (Étapes 1 à 5)
+  onboardingStep      Int          @default(1)
+  onboardingCompleted Boolean      @default(false)
+  
+  // KYC Vendeur progressif (bloquant au retrait de fonds)
+  kycStatus           KycStatus    @default(NONE)
+  idCardNumber        String?      // Numéro CNI sénégalaise
+  idCardUrl           String?      // Scan/photo CNI
+  kycSubmittedAt      DateTime?
+  kycVerifiedAt       DateTime?
+  kycRejectionReason  String?      @db.Text
   
   address          String?
   city             String           @default("Dakar")

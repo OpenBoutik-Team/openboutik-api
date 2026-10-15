@@ -1,11 +1,13 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Body,
   Param,
   Query,
   UseGuards,
+  ParseIntPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -17,6 +19,7 @@ import {
 import { ShopsService } from './shops.service';
 import { UpdateShopDto } from './dto/update-shop.dto';
 import { VerifyShopDto } from './dto/verify-shop.dto';
+import { SaveOnboardingStepDto, SubmitKycDto, ReviewKycDto } from './dto/onboarding.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -27,6 +30,19 @@ import { Role } from '../generated/prisma/client';
 @Controller('shops')
 export class ShopsController {
   constructor(private readonly shopsService: ShopsService) {}
+
+  @Get('check-slug/:slug')
+  @ApiOperation({
+    summary: 'Vérifier la disponibilité d’un nom d’URL / slug en temps réel',
+    description: 'Vérifie si openboutik.sn/boutique/[slug] est disponible. Renvoie une suggestion alternative dakaroise si le nom est déjà pris.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Disponibilité vérifiée avec succès',
+  })
+  async checkSlug(@Param('slug') slug: string) {
+    return this.shopsService.checkSlugAvailability(slug);
+  }
 
   @Get()
   @ApiOperation({
@@ -42,6 +58,61 @@ export class ShopsController {
     @Query('isVerified') isVerified?: boolean,
   ) {
     return this.shopsService.getAllShops({ search, city, isVerified });
+  }
+
+  @Get('me/onboarding')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENDOR)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Récupérer l’état d’onboarding marchand et la checklist de démarrage',
+    description: 'Permet au Pôle Vendeur (openboutik-seller) d’afficher l’étape en cours (1..5) et la checklist (onboarding terminé, 1er produit ajouté, KYC vérifié).',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'État de l’onboarding récupéré avec succès',
+  })
+  async getOnboardingStatus(@CurrentUser('id') vendorId: string) {
+    return this.shopsService.getOnboardingStatus(vendorId);
+  }
+
+  @Patch('me/onboarding/step/:step')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENDOR)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Sauvegarder une étape d’onboarding (Étapes 1 à 5)',
+    description: 'Enregistre les données de l’étape en cours. Les étapes 2 (Apparence) et 5 (Plan SaaS) peuvent être sautées avec { skip: true }.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Étape enregistrée avec succès, renvoie le statut d’onboarding mis à jour',
+  })
+  async saveOnboardingStep(
+    @CurrentUser('id') vendorId: string,
+    @Param('step', ParseIntPipe) step: number,
+    @Body() dto: SaveOnboardingStepDto,
+  ) {
+    return this.shopsService.saveOnboardingStep(vendorId, step, dto);
+  }
+
+  @Post('me/kyc')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENDOR)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Soumettre la pièce d’identité (CNI) pour débloquer les retraits',
+    description: 'Enregistre le numéro de CNI sénégalaise et l’URL du document pour passage en statut KYC PENDING.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Dossier KYC transmis avec succès pour examen',
+  })
+  async submitKyc(
+    @CurrentUser('id') vendorId: string,
+    @Body() dto: SubmitKycDto,
+  ) {
+    return this.shopsService.submitKyc(vendorId, dto);
   }
 
   @Get('vendor/me')
@@ -77,6 +148,41 @@ export class ShopsController {
     @Body() dto: UpdateShopDto,
   ) {
     return this.shopsService.updateVendorShop(vendorId, dto);
+  }
+
+  @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENDOR)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Créer une boutique (Règle MVP : 1 Vendeur = 1 Boutique)',
+    description: 'Rejette la création d’une seconde boutique pour le même compte avec 409 Conflict.',
+  })
+  async createShop(
+    @CurrentUser('id') vendorId: string,
+    @Body() dto: SaveOnboardingStepDto,
+  ) {
+    return this.shopsService.createShop(vendorId, dto);
+  }
+
+  @Patch('admin/:id/kyc')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Validation ou Rejet KYC d’un marchand (Super-Admin)',
+    description: 'Approuve la CNI du marchand pour débloquer ses retraits Mobile Money et lui attribuer son badge certifié.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Décision KYC enregistrée avec succès avec trace dans AuditLog',
+  })
+  async reviewKyc(
+    @Param('id') shopId: string,
+    @CurrentUser('id') superAdminId: string,
+    @Body() dto: ReviewKycDto,
+  ) {
+    return this.shopsService.reviewKyc(shopId, dto, superAdminId);
   }
 
   @Patch(':id/verify')
@@ -116,3 +222,4 @@ export class ShopsController {
     return this.shopsService.findBySlug(slug);
   }
 }
+

@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { WalletsService } from './wallets.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { PaymentProvider, PayoutStatus } from '../generated/prisma/client';
+import { PaymentProvider, PayoutStatus, KycStatus } from '../generated/prisma/client';
 
 describe('WalletsService (Unit Tests)', () => {
   let service: WalletsService;
@@ -18,6 +18,7 @@ describe('WalletsService (Unit Tests)', () => {
     id: 'shop-uuid-1',
     name: 'Boutique Teranga Dakar',
     ownerId: 'vendor-uuid-1',
+    kycStatus: KycStatus.VERIFIED,
     wallet: {
       id: 'wallet-uuid-1',
       availableBalanceFcfa: 75000,
@@ -88,6 +89,21 @@ describe('WalletsService (Unit Tests)', () => {
           recipientPhone: '+221771234567',
         }),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('doit bloquer avec ForbiddenException 403 si le marchand n’a pas son KYC validé', async () => {
+      mockPrismaService.shop.findUnique.mockResolvedValue({
+        ...mockShop,
+        kycStatus: KycStatus.PENDING,
+      });
+
+      await expect(
+        service.requestPayout('vendor-uuid-1', {
+          amountFcfa: 10000,
+          provider: PaymentProvider.WAVE,
+          recipientPhone: '+221771234567',
+        }),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('doit bloquer toute demande de retrait supérieure au solde disponible (anti-overdraft)', async () => {

@@ -3,6 +3,7 @@ import {
   ConflictException,
   UnauthorizedException,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
@@ -48,6 +49,7 @@ export class AuthService {
         email: dto.email,
         passwordHash,
         role: Role.CLIENT,
+        acceptedTermsAt: new Date(),
       },
     });
 
@@ -61,9 +63,15 @@ export class AuthService {
   }
 
   /**
-   * Inscription d'un marchand (Transaction ACID : User + Shop + VendorWallet)
+   * Inscription d'un marchand (Étape 0 d'Onboarding avec acceptation des CGU & Séquestre)
    */
   async registerVendor(dto: RegisterVendorDto) {
+    if (!dto.acceptTerms) {
+      throw new BadRequestException(
+        'Vous devez accepter les conditions générales d’utilisation et la politique de séquestre (commission de 2 % à 4 %)',
+      );
+    }
+
     const existingPhone = await this.usersService.findByPhone(dto.phone);
     if (existingPhone) {
       throw new ConflictException('Un compte existe déjà avec ce numéro de téléphone');
@@ -76,17 +84,19 @@ export class AuthService {
       }
     }
 
-    const existingSlug = await this.prisma.shop.findUnique({
-      where: { slug: dto.shopSlug.toLowerCase().trim() },
-    });
-    if (existingSlug) {
-      throw new ConflictException('Ce nom d’URL / slug de boutique est déjà réservé par un autre marchand');
+    if (dto.shopSlug) {
+      const existingSlug = await this.prisma.shop.findUnique({
+        where: { slug: dto.shopSlug.toLowerCase().trim() },
+      });
+      if (existingSlug) {
+        throw new ConflictException('Ce nom d’URL / slug de boutique est déjà réservé par un autre marchand');
+      }
     }
 
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(dto.password, salt);
 
-    // Transaction ACID complète pour garantir la cohérence financière du vendeur
+    // Transaction ACID complète pour initialiser le compte vendeur
     const result = await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
@@ -95,29 +105,36 @@ export class AuthService {
           email: dto.email,
           passwordHash,
           role: Role.VENDOR,
+          acceptedTermsAt: new Date(),
         },
       });
 
-      const shop = await tx.shop.create({
-        data: {
-          ownerId: user.id,
-          name: dto.shopName,
-          slug: dto.shopSlug.toLowerCase().trim(),
-          whatsappNumber: dto.whatsappNumber,
-          address: dto.address,
-          city: dto.city || 'Dakar',
-          wallet: {
-            create: {
-              escrowBalanceFcfa: 0,
-              availableBalanceFcfa: 0,
-              totalEarnedFcfa: 0,
+      let shop = null;
+      if (dto.shopName && dto.shopSlug) {
+        shop = await tx.shop.create({
+          data: {
+            ownerId: user.id,
+            name: dto.shopName,
+            slug: dto.shopSlug.toLowerCase().trim(),
+            mainCategory: dto.mainCategory,
+            whatsappNumber: dto.whatsappNumber || dto.phone,
+            address: dto.address,
+            city: dto.city || 'Dakar',
+            onboardingStep: 2,
+            onboardingCompleted: false,
+            wallet: {
+              create: {
+                escrowBalanceFcfa: 0,
+                availableBalanceFcfa: 0,
+                totalEarnedFcfa: 0,
+              },
             },
           },
-        },
-        include: {
-          wallet: true,
-        },
-      });
+          include: {
+            wallet: true,
+          },
+        });
+      }
 
       return { user, shop };
     });

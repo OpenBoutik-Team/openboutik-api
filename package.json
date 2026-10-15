@@ -22,6 +22,8 @@
     "test:stress": "tsx test/openboutik-stress.e2e-spec.ts",
     "test:chaos": "tsx test/openboutik-chaos-extreme.e2e-spec.ts",
     "test:pentest": "tsx test/openboutik-pentest.e2e-spec.ts",
+    "test:onboarding": "tsx test/openboutik-onboarding-kyc.e2e-spec.ts",
+    "test:certification": "tsx test/openboutik-certification.e2e-spec.ts",
     "seed": "npx tsx prisma/seed.ts"
   },
   "dependencies": {

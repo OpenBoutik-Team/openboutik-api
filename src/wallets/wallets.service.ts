@@ -2,10 +2,11 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RequestPayoutDto } from './dto/request-payout.dto';
-import { Prisma, PayoutStatus } from '../generated/prisma/client';
+import { Prisma, PayoutStatus, KycStatus } from '../generated/prisma/client';
 
 @Injectable()
 export class WalletsService {
@@ -51,6 +52,13 @@ export class WalletsService {
 
     if (!shop || !shop.wallet) {
       throw new NotFoundException('Boutique ou portefeuille introuvable');
+    }
+
+    // Verrouillage de sécurité financière : KYC CNI obligatoire au retrait
+    if (shop.kycStatus !== KycStatus.VERIFIED) {
+      throw new ForbiddenException(
+        "Retrait impossible : Votre compte marchand doit être certifié (KYC) avant tout décaissement de vos fonds. Veuillez soumettre votre pièce d'identité (CNI) dans votre espace vendeur.",
+      );
     }
 
     if (!dto.amountFcfa || dto.amountFcfa <= 0) {
