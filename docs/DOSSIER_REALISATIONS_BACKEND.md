@@ -187,9 +187,12 @@ Avant toute livraison finale, une batterie complète de stress tests a été ex�
 ## 5. ÉTAT FINAL DU DÉPÔT & LIVRABLES
 
 * **Dépôt Git :** Branche `develop` propre, synchronisée et pushée avec succès sur le dépôt distant :  
-  `https://github.com/OpenBoutik-Team/openboutik-api` (Commit `4f839bb`).
+  `https://github.com/OpenBoutik-Team/openboutik-api`.
+* **Hébergement Cloud API :** Déployé et opérationnel sur **Render** : **`https://openboutik-api.onrender.com/api/v1`**.
+* **Documentation OpenAPI / Swagger Cloud :** Interactive et testable en direct sur **`https://openboutik-api.onrender.com/api/docs`**.
+* **Base de Données Cloud :** MySQL géré sur **Clever Cloud** (`openboutik-db`), synchronisé via Prisma et alimenté par le seed de certification.
 * **Base de Données Locale :** Synchronisée sous MySQL XAMPP (`openboutik_db`), tables inspectables sous **phpMyAdmin** (`http://localhost/phpmyadmin/`).
-* **Documentation OpenAPI / Swagger :** Interactive et testable en local sur **`http://localhost:4000/api/docs`**.
+* **Documentation OpenAPI / Swagger Locale :** Accessible sur **`http://localhost:4000/api/docs`**.
 
 ---
 

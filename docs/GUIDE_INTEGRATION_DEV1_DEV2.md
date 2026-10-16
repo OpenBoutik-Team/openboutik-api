@@ -1,8 +1,10 @@
 # 🔌 GUIDE D'INTÉGRATION OFFICIEL — OPENBOUTIK API
 ## À destination de Dev 1 (Marketplace Client) et Dev 2 (Espace Marchand & Back-Office Admin)
 
-> **API Base URL :** `http://localhost:4000/api/v1`  
-> **Swagger / Documentation Interactive :** `http://localhost:4000/api/docs`  
+> **API Base URL (Cloud Production) :** `https://openboutik-api.onrender.com/api/v1`  
+> **Swagger Interactive (Cloud Production) :** `https://openboutik-api.onrender.com/api/docs`  
+> **API Base URL (Local Dev) :** `http://localhost:4000/api/v1`  
+> **Swagger Interactive (Local Dev) :** `http://localhost:4000/api/docs`  
 > **Format d'Enveloppe JSON standardisé :**
 ```json
 {
