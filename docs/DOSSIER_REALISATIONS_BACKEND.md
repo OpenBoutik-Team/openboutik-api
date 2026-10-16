@@ -43,7 +43,7 @@ Au démarrage, 4 questions fondamentales d'architecture ont été posées une pa
 | Axe d'Architecture | Arbitrage Retenu | Justification & Impact Technique |
 | :--- | :--- | :--- |
 | **1. Calcul des Commissions** | **Option A (Dynamique selon plan)** | Commissions modérées pour ne pas asphyxier les marchands : **4 %** sur le plan `FREE`, **3 %** sur le plan `PRO` (15 000 FCFA/mois) et **2 %** sur le plan `PREMIUM` (35 000 FCFA/mois). Taux et montants figés (**snapshot immuable**) sur chaque commande. |
-| **2. Déblocage du Séquestre** | **Option A (Double validation + Filet 48h)** | Déblocage possible soit par la saisie du code **OTP Tiak-Tiak** (par le marchand/livreur), soit par confirmation directe du client dans son espace. Filet de sécurité d'**auto-déblocage après 48h** sans litige. Gel immédiat vers le Super-Admin si l'acheteur signale un problème. |
+| **2. Déblocage du Séquestre** | **Option A (Double validation + Filet 24h)** | Déblocage possible soit par la saisie du code **OTP Tiak-Tiak** (par le marchand/livreur), soit par confirmation directe du client dans son espace. Filet de sécurité d'**auto-déblocage après 24h** sans litige. Gel immédiat vers le Super-Admin si l'acheteur signale un problème. |
 | **3. Panier Multi-Boutiques** | **Option A (Split automatique de commandes)** | Le client effectue un paiement global unique via Wave ou Orange Money (`CheckoutSession`). L'API découpe automatiquement le panier en sous-commandes indépendantes (`Order`) par boutique pour isoler les séquestres, les coursiers Tiak-Tiak et les litiges. |
 | **4. Contrat API & Ports** | **Option A (Standard Entreprise unifié)** | API fixée sur le port **`4000`** (laissant le `3000` pour Dev 1 et le `3001` pour Dev 2). Format JSON uniforme `{ success, data, message, timestamp }` pour toutes les réponses de succès et format standardisé pour toutes les exceptions. |
 
@@ -63,7 +63,7 @@ Création du modèle complet avec respect strict des transactions ACID et exclus
 3. **`Subscription` :** Historique des abonnements mensuels SaaS des marchands.
 4. **`Category` & `Product` :** Catégories globales ou par boutique, gestion des stocks physiques, prix de comparaison et tableaux d'images JSON.
 5. **`CheckoutSession` :** Session de paiement global multi-boutiques.
-6. **`Order` & `OrderItem` :** Commandes cloisonnées par boutique avec numéro `OB-2026-XXXX`, code OTP 6 chiffres (`deliveryConfirmationCode`), snapshots comptables inaltérables (`commissionRate`, `commissionAmountFcfa`, `netVendorAmountFcfa`) et horodatage d'auto-déblocage `autoReleaseAt` (+48h).
+6. **`Order` & `OrderItem` :** Commandes cloisonnées par boutique avec numéro `OB-2026-XXXX`, code OTP 6 chiffres (`deliveryConfirmationCode`), snapshots comptables inaltérables (`commissionRate`, `commissionAmountFcfa`, `netVendorAmountFcfa`) et horodatage d'auto-déblocage `autoReleaseAt` (+24h).
 7. **`EscrowTransaction` :** Traçabilité exacte du séquestre (`HELD_IN_ESCROW`, `RELEASED_TO_VENDOR`, `FROZEN_BY_DISPUTE`, `REFUNDED_TO_CLIENT`).
 8. **`VendorWallet` & `WalletPayout` :** Portefeuille marchand séparant rigoureusement le solde bloqué en séquestre (`escrowBalanceFcfa`) et le solde net disponible au retrait (`availableBalanceFcfa`), avec demandes de virement Mobile Money.
 9. **`Dispute` :** Dossier de litige ouvert par l'acheteur, gelant immédiatement le séquestre et réservé à l'arbitrage exclusif de l'équipe **Super-Admin**.
@@ -119,7 +119,7 @@ Peuplement complet de la base de données sans aucune donnée fictive génériqu
   * Snapshot inaltérable des commissions en FCFA selon le forfait de la boutique.
   * Génération du code OTP Tiak-Tiak à 6 chiffres.
   * Création des séquestres individuels `HELD_IN_ESCROW` et incrémentation de `VendorWallet.escrowBalanceFcfa`.
-* **Suivi de Commande :** Passage en préparation `PREPARING` puis expédition `SHIPPED_TIAK_TIAK` avec calcul automatique du compte à rebours de sécurité de 48h (`autoReleaseAt`).
+* **Suivi de Commande :** Passage en préparation `PREPARING` puis expédition `SHIPPED_TIAK_TIAK` avec calcul automatique du compte à rebours de sécurité de 24h (`autoReleaseAt`).
 * **Déblocage Séquestre en Transaction ACID (`POST /api/v1/orders/:id/confirm-delivery`) :**
   * Validation possible soit par saisie du code OTP Tiak-Tiak, soit par validation directe du client dans son espace.
   * Statut commande -> `DELIVERED_CONFIRMED`.
@@ -127,7 +127,7 @@ Peuplement complet de la base de données sans aucune donnée fictive génériqu
   * Virement instantané en BDD du solde séquestré vers le solde disponible (`availableBalanceFcfa`) du marchand.
   * Création automatique d'un Audit Log immuable.
 * **Supervision Super-Admin (`GET /api/v1/escrow/overview`) :** Total des fonds bloqués, gelés sous litige et reversés.
-* **Filet de Sécurité (`POST /api/v1/escrow/auto-release`) :** Auto-déblocage des commandes expédiées depuis plus de 48h sans aucun litige.
+* **Filet de Sécurité (`POST /api/v1/escrow/auto-release`) :** Auto-déblocage des commandes expédiées depuis plus de 24h sans aucun litige.
 * **Webhooks Mobile Money :** Réception et traitement idempotent pour Wave et Orange Money.
 
 #### 6. `DisputesModule` (Litiges & Arbitrage Super-Admin)

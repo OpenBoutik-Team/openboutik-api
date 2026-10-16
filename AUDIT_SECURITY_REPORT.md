@@ -63,7 +63,7 @@ Toutes les vulnérabilités détectées lors de la phase initiale ont été corr
 | `GET` | `/api/v1/subscriptions/plans` | `Public` | Grille tarifaire publique en FCFA | 🛡️ Sécurisé |
 | `POST` | `/api/v1/subscriptions/upgrade` | `VENDOR` | Mise à niveau forfait SaaS et commission | 🛡️ Sécurisé |
 | `GET` | `/api/v1/escrow/overview` | `SUPER_ADMIN` | Vue trésorerie globale séquestre | 🛡️ Sécurisé |
-| `POST` | `/api/v1/escrow/auto-release`| `SUPER_ADMIN` | Déclenchement filet de sécurité 48h | 🛡️ Sécurisé |
+| `POST` | `/api/v1/escrow/auto-release`| `SUPER_ADMIN` | Déclenchement filet de sécurité 24h | 🛡️ Sécurisé |
 | `POST` | `/api/v1/escrow/webhooks/wave` | `Public` (HMAC) | Validation HMAC SHA-256 (`WaveWebhookGuard`) | 🛡️ Sécurisé |
 | `POST` | `/api/v1/escrow/webhooks/orange-money`| `Public` (HMAC) | Validation HMAC SHA-256 (`OrangeMoneyWebhookGuard`) | 🛡️ Sécurisé |
 
@@ -93,7 +93,7 @@ Toutes les vulnérabilités détectées lors de la phase initiale ont été corr
        ▼ (Préparation colis)
   [PREPARING]
        │
-       ▼ (Remise au livreur Tiak-Tiak + timer 48h enclenché)
+       ▼ (Remise au livreur Tiak-Tiak + timer 24h enclenché)
 [SHIPPED_TIAK_TIAK]
        │
        ├──► (Validation Client OU Code OTP 6 chiffres remis par livreur)

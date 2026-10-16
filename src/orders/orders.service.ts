@@ -388,7 +388,7 @@ export class OrdersService {
     }
 
     const shippedAt = new Date();
-    const autoReleaseHours = Number(process.env.ESCROW_AUTO_RELEASE_HOURS) || 48;
+    const autoReleaseHours = Number(process.env.ESCROW_AUTO_RELEASE_HOURS) || 24;
     const autoReleaseAt = new Date(
       shippedAt.getTime() + autoReleaseHours * 60 * 60 * 1000,
     );
@@ -422,6 +422,17 @@ export class OrdersService {
 
     if (!order) {
       throw new NotFoundException('Commande introuvable');
+    }
+
+    if (order.status === OrderStatus.PENDING_PAYMENT) {
+      throw new BadRequestException('Cette commande n’a pas encore été payée');
+    }
+
+    if (
+      order.status === OrderStatus.CANCELLED ||
+      order.status === OrderStatus.REFUNDED
+    ) {
+      throw new BadRequestException('Cette commande a été annulée ou remboursée');
     }
 
     if (order.status === OrderStatus.DELIVERED_CONFIRMED) {

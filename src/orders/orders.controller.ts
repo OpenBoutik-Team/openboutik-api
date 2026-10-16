@@ -127,7 +127,7 @@ export class OrdersController {
   @Roles(Role.VENDOR)
   @ApiOperation({
     summary: 'Déclarer la remise au livreur Tiak-Tiak (Vendeur)',
-    description: 'Passe la commande au statut SHIPPED_TIAK_TIAK et déclenche le compte à rebours de sécurité de 48h.',
+    description: 'Passe la commande au statut SHIPPED_TIAK_TIAK et déclenche le compte à rebours de sécurité de 24h.',
   })
   async shipOrder(
     @Param('id') orderId: string,

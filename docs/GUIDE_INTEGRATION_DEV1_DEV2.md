@@ -87,10 +87,11 @@ Authorization: Bearer <accessToken>
   * `GET /orders/client/me`
 * **Détail d'une commande :**
   * `GET /orders/:id`
-* **Confirmer la réception (Libération des fonds au marchand) :**
+* **Confirmer la réception (Libération des fonds au marchand — Déblocage 1-clic) :**
   * `POST /orders/:id/confirm-delivery`
-  * **Body :** `{ "confirmationCode": "123456" }` (Optionnel pour l'acheteur connecté, obligatoire si c'est le livreur).
-  * Débloque instantanément le montant net vers le solde disponible du marchand.
+  * **Body :** `{}` (Pour l'acheteur connecté, aucun code n'est requis : un simple clic sur le bouton **« J'ai bien reçu ma commande »** suffit).
+  * **Effet instantané :** Débloque immédiatement le montant net de la commande vers le solde disponible du commerçant.
+  * **Filet de sécurité automatique (24h) :** Si l'acheteur ne confirme pas manuellement et qu'aucun litige n'est ouvert, les fonds sont automatiquement libérés au vendeur **24h** après l'expédition.
 
 ---
 
@@ -203,7 +204,7 @@ Permet une sauvegarde progressive et une reprise fluide de session interrompue.
   * `PATCH /orders/:id/prepare`
 * **Expédier via Tiak-Tiak :**
   * `PATCH /orders/:id/ship`
-  * *Enclenche automatiquement le délai de sécurité de 48h (`autoReleaseAt`).*
+  * *Enclenche automatiquement le compte à rebours de sécurité de 24h (`autoReleaseAt`).*
 * **Valider la remise avec le code OTP :**
   * `POST /orders/:id/confirm-delivery` avec `{ "confirmationCode": "482910" }` (code 6 chiffres fourni par le client).
 
@@ -259,5 +260,5 @@ Réservé aux administrateurs de la plateforme pour la certification et les arbi
     ```
 * **Surveillance globale du Séquestre :**
   * `GET /escrow/overview` : Totalisé des fonds en séquestre, gelés et reversés.
-* **Déclenchement du cron d'auto-déblocage 48h :**
+* **Déclenchement du cron d'auto-déblocage 24h :**
   * `POST /escrow/auto-release`

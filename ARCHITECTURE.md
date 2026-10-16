@@ -117,7 +117,7 @@ L'API distingue trois rôles stricts :
 [SHIPPED_TIAK_TIAK]
        │
        ├───> [DELIVERED_CONFIRMED] ──> Déblocage séquestre vers VendorWallet
-       │        (Via OTP Tiak-Tiak OU clic client OU auto-déblocage après 48h)
+       │        (Via OTP Tiak-Tiak OU clic client OU auto-déblocage après 24h)
        │
        └───> [DISPUTED] ────────────> Séquestre gelé (FROZEN) -> Arbitrage Super-Admin
                 ├───> [RESOLVED_RELEASE_VENDOR] ──> Déblocage vers VendorWallet
@@ -205,7 +205,7 @@ Les commissions sont prélevées automatiquement lors du déblocage du séquestr
 | `POST` | `/api/v1/categories` | `VENDOR` | Création d'une catégorie personnalisée pour sa boutique. |
 | `GET` | `/api/v1/orders/vendor/me` | `VENDOR` | Suivi des commandes reçues (filtre par statut : payée, expédiée, livrée). |
 | `PATCH` | `/api/v1/orders/:id/prepare` | `VENDOR` | Prise en charge de la préparation du colis (`PREPARING`). |
-| `PATCH` | `/api/v1/orders/:id/ship` | `VENDOR` | Remise au livreur moto Tiak-Tiak (`SHIPPED_TIAK_TIAK`) + timer 48h. |
+| `PATCH` | `/api/v1/orders/:id/ship` | `VENDOR` | Remise au livreur moto Tiak-Tiak (`SHIPPED_TIAK_TIAK`) + timer 24h. |
 | `POST` | `/api/v1/orders/:id/confirm-delivery` | `VENDOR` | Validation de livraison par saisie du code OTP 6 chiffres remis par le client. |
 | `GET` | `/api/v1/wallets/me` | `VENDOR` | Consultation du portefeuille (solde bloqué séquestre vs solde disponible). |
 | `POST` | `/api/v1/wallets/payout` | `VENDOR` | Demande de transfert vers Wave ou Orange Money en transaction ACID. |
@@ -216,7 +216,7 @@ Les commissions sont prélevées automatiquement lors du déblocage du séquestr
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/v1/auth/login` | Public | Connexion avec identifiants Super-Admin. |
 | `GET` | `/api/v1/escrow/overview` | `SUPER_ADMIN` | Supervision en direct de la trésorerie globale séquestrée et commissions perçues. |
-| `POST` | `/api/v1/escrow/auto-release` | `SUPER_ADMIN` | Déclenchement du filet de sécurité (auto-déblocage après 48h sans litige). |
+| `POST` | `/api/v1/escrow/auto-release` | `SUPER_ADMIN` | Déclenchement du filet de sécurité (auto-déblocage après 24h sans litige). |
 | `PATCH` | `/api/v1/shops/:id/verify` | `SUPER_ADMIN` | Attribution ou révocation du badge certifié marchand vérifié + Audit Log. |
 | `GET` | `/api/v1/disputes` | `SUPER_ADMIN` | Tableau de bord de tous les litiges ouverts avec pièces justificatives. |
 | `POST` | `/api/v1/disputes/:id/arbitrate` | `SUPER_ADMIN` | Arbitrage officiel : Remboursement client (`REFUND_CLIENT`) OU versement marchand (`RELEASE_VENDOR`). |

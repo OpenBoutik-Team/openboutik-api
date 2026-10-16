@@ -291,7 +291,7 @@ model Order {
   status                   OrderStatus       @default(PENDING_PAYMENT)
   shippedAt                DateTime?
   deliveredAt              DateTime?
-  autoReleaseAt            DateTime?         // Date limite (shippedAt + 48h) pour auto-déblocage
+  autoReleaseAt            DateTime?         // Date limite (shippedAt + 24h) pour auto-déblocage
 
   createdAt                DateTime          @default(now())
   updatedAt                DateTime          @updatedAt

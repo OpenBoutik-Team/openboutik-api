@@ -69,7 +69,7 @@ export class EscrowService {
   }
 
   /**
-   * Filet de sécurité : Auto-déblocage des commandes expédiées depuis plus de 48h sans litige
+   * Filet de sécurité : Auto-déblocage des commandes expédiées depuis plus de 24h sans litige
    */
   async autoReleaseExpiredOrders() {
     const now = new Date();
@@ -122,13 +122,13 @@ export class EscrowService {
 
         await tx.auditLog.create({
           data: {
-            action: 'ESCROW_AUTO_RELEASED_48H',
+            action: 'ESCROW_AUTO_RELEASED_24H',
             entityType: 'ORDER',
             entityId: order.id,
             metadata: {
               orderNumber: order.orderNumber,
               netVendorAmountFcfa: order.netVendorAmountFcfa,
-              reason: '48h_safety_timer_elapsed_without_dispute',
+              reason: '24h_safety_timer_elapsed_without_dispute',
             },
           },
         });

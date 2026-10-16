@@ -48,8 +48,8 @@ export class EscrowController {
   @Roles(Role.SUPER_ADMIN)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({
-    summary: 'Déclencher l’auto-déblocage des commandes expédiées depuis plus de 48h (Filet de sécurité)',
-    description: 'Scanne et libère automatiquement les commandes en cours de livraison depuis plus de 48h sans aucun litige ouvert.',
+    summary: 'Déclencher l’auto-déblocage des commandes expédiées depuis plus de 24h (Filet de sécurité)',
+    description: 'Scanne et libère automatiquement les commandes en cours de livraison depuis plus de 24h sans aucun litige ouvert.',
   })
   @ApiResponse({
     status: 200,
