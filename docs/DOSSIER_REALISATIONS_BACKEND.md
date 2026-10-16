@@ -77,7 +77,7 @@ Création du modèle complet avec respect strict des transactions ACID et exclus
 
 ### D. Données d'Amorçage Réalistes Sénégalaises (`prisma/seed.ts`)
 Peuplement complet de la base de données sans aucune donnée fictive générique (mot de passe universel : `Passer123!`) :
-* **1 Super-Admin :** `admin@openboutik.sn` (`+221770000001`) pour l'équipe Dev OpenBoutik.
+* **1 Super-Admin :** Becmans Ndiaye (`admin.03@gmail.com` / `+221770000001`) pour l'équipe Dev OpenBoutik.
 * **Boutique 1 — « Teranga Mode » :** Vendeur Moussa Diop (`+221771234567`), Rue 11 Médina Dakar, Plan `PRO` (3%), 3 produits (Boubou bazin riche brodé à 35 000 FCFA, Robe wax thioup à 18 000 FCFA, Sacoche cuir artisanale à 12 500 FCFA).
 * **Boutique 2 — « Dakar Tech Hub » :** Vendeuse Aminata Sow (`+221789876543`), Avenue Ponty Plateau Dakar, Plan `FREE` (4%), 2 produits (Écouteurs TWS Bluetooth à 15 000 FCFA, Power Bank 20 000 mAh à 22 000 FCFA).
 * **1 Cliente Acheteuse :** Fatou Ndiaye (`+221765432109`), Quartier Mermoz, Dakar.

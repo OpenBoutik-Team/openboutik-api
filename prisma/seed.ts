@@ -31,9 +31,9 @@ async function main() {
   // 1. Super-Admin (Pôle Équipe Dev & Opérations OpenBoutik)
   const superAdmin = await prisma.user.create({
     data: {
-      email: 'admin@openboutik.sn',
+      email: 'admin.03@gmail.com',
       phone: '+221770000001',
-      fullName: 'Bécaye Ndiaye (Super-Admin)',
+      fullName: 'Becmans Ndiaye',
       passwordHash: defaultPasswordHash,
       role: Role.SUPER_ADMIN,
       acceptedTermsAt: new Date(),

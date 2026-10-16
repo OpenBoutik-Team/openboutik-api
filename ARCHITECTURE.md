@@ -228,8 +228,8 @@ Les commissions sont prélevées automatiquement lors du déblocage du séquestr
 
 > **Mot de passe universel de test :** `Passer123!`
 
-1. **Super-Admin (Équipe Dev OpenBoutik) :**
-   * **Identifiant :** `admin@openboutik.sn` ou `+221770000001`
+1. **Super-Admin (Becmans Ndiaye — Équipe Dev OpenBoutik) :**
+   * **Identifiant :** `admin.03@gmail.com` ou `+221770000001`
    * **Rôle :** `SUPER_ADMIN`
 2. **Vendeur 1 — Boutique « Teranga Mode » (Médina, Dakar) :**
    * **Identifiant :** `moussa.diop@terangamode.sn` ou `+221771234567`
