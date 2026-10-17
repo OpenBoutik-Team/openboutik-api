@@ -7,7 +7,18 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   private readonly logger = new Logger(PrismaService.name);
 
   constructor() {
-    const connectionString = process.env.DATABASE_URL || 'mysql://root:@localhost:3306/openboutik_db';
+    const rawUrl =
+      process.env.DATABASE_URL || 'mysql://root:@localhost:3306/openboutik_db';
+    let connectionString = rawUrl;
+    try {
+      const parsed = new URL(rawUrl);
+      if (!parsed.searchParams.has('connectionLimit')) {
+        parsed.searchParams.set('connectionLimit', '3');
+      }
+      connectionString = parsed.toString();
+    } catch {
+      connectionString = rawUrl;
+    }
     const adapter = new PrismaMariaDb(connectionString);
     super({ adapter });
   }
