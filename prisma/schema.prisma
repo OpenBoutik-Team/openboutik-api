@@ -81,6 +81,11 @@ enum KycStatus {
   REJECTED
 }
 
+enum CouponType {
+  PERCENTAGE
+  FIXED_FCFA
+}
+
 // ------------------------------------------------------------------------------
 // UTILISATEURS & AUTHENTIFICATION
 // ------------------------------------------------------------------------------
@@ -106,6 +111,7 @@ model User {
   disputes             Dispute[]         @relation("ClientDisputes")
   arbitratedDisputes   Dispute[]         @relation("SuperAdminArbitrations")
   auditLogs            AuditLog[]
+  reviews              Review[]
 
   @@map("users")
 }
@@ -149,6 +155,10 @@ model Shop {
   isVerified       Boolean          @default(false)
   isActive         Boolean          @default(true)
   
+  // Mode Vacances
+  isOnVacation     Boolean          @default(false)
+  vacationMessage  String?          @db.Text
+  
   subscriptionPlan SubscriptionPlan @default(FREE)
 
   createdAt        DateTime         @default(now())
@@ -160,6 +170,7 @@ model Shop {
   categories       Category[]
   products         Product[]
   orders           Order[]
+  coupons          Coupon[]
 
   @@map("shops")
 }
@@ -221,6 +232,7 @@ model Product {
   priceFcfa          Int         // Entier strict en FCFA (ex: 25000)
   compareAtPriceFcfa Int?        // Prix barré éventuel
   stock              Int         @default(0)
+  lowStockThreshold  Int         @default(0) // Alerte seuil stock critique
   images             Json        // Tableau d'URLs JSON ["https://..."]
   
   isPublished        Boolean     @default(true)
@@ -228,7 +240,11 @@ model Product {
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
+  // Relations
   orderItems         OrderItem[]
+  variants           ProductVariant[]
+  reviews            Review[]
+  views              ProductView[]
 
   @@unique([shopId, slug])
   @@index([isPublished, priceFcfa])
@@ -275,10 +291,17 @@ model Order {
   // Données financières figées (Snapshots immuables)
   subtotalFcfa             Int
   deliveryFeeFcfa          Int               @default(0)
+  discountAmountFcfa       Int               @default(0) // Réduction appliquée via Coupon
+  couponCode               String?           // Code promo utilisé (ex: "TABASKI20")
+  couponId                 String?
+  coupon                   Coupon?           @relation(fields: [couponId], references: [id], onDelete: SetNull)
   totalAmountFcfa          Int
   commissionRate           Int               // 5 pour 5%, 3 pour 3%, etc.
   commissionAmountFcfa     Int
   netVendorAmountFcfa      Int
+  
+  // Facturation & Reçus
+  invoiceUrl               String?           // URL ou route du reçu PDF
   
   // Logistique Tiak-Tiak
   deliveryMethod           DeliveryMethod    @default(TIAK_TIAK)
@@ -300,6 +323,7 @@ model Order {
   items                    OrderItem[]
   escrow                   EscrowTransaction?
   dispute                  Dispute?
+  notes                    OrderNote[]
 
   @@index([status])
   @@index([createdAt])
@@ -307,19 +331,23 @@ model Order {
 }
 
 model OrderItem {
-  id            String   @id @default(uuid())
-  orderId       String
-  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id                String          @id @default(uuid())
+  orderId           String
+  order             Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
   
-  productId     String?
-  product       Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productId         String?
+  product           Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
   
-  productName   String   // Snapshot du nom du produit au moment de l'achat
-  unitPriceFcfa Int      // Snapshot du prix unitaire en FCFA
-  quantity      Int
-  totalPriceFcfa Int
+  variantId         String?
+  variant           ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  variantAttributes Json?           // Snapshot taille/couleur au moment de la commande
+  
+  productName       String          // Snapshot du nom du produit au moment de l'achat
+  unitPriceFcfa     Int             // Snapshot du prix unitaire en FCFA
+  quantity          Int
+  totalPriceFcfa    Int
 
-  createdAt     DateTime @default(now())
+  createdAt         DateTime        @default(now())
 
   @@map("order_items")
 }
@@ -436,4 +464,106 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ------------------------------------------------------------------------------
+// NOUVEAUX MODÈLES V2 (OCTOBRE 2026)
+// ------------------------------------------------------------------------------
+
+// Variantes de Produits (Tailles, Couleurs...)
+model ProductVariant {
+  id                 String      @id @default(uuid())
+  productId          String
+  product            Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  sku                String?
+  priceFcfa          Int         // Prix spécifique ou hérité du produit
+  compareAtPriceFcfa Int?        // Prix barré éventuel de la variante
+  stock              Int         @default(0)
+  attributes         Json        // Ex: {"taille": "XL", "couleur": "Bleu Nuit"}
+  isActive           Boolean     @default(true)
+
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  orderItems         OrderItem[]
+
+  @@index([productId])
+  @@map("product_variants")
+}
+
+// Mémos Internes Vendeur sur Commandes (100 % Confidentiels)
+model OrderNote {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  text      String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@map("order_notes")
+}
+
+// Générateur de Codes Promotionnels Marchand
+model Coupon {
+  id          String     @id @default(uuid())
+  shopId      String
+  shop        Shop       @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  code        String     // Ex: "TABASKI20" (forcé en majuscules)
+  type        CouponType @default(PERCENTAGE)
+  value       Int        // % (ex: 20) ou montant direct en FCFA (ex: 5000)
+  expiryDate  DateTime
+  maxUses     Int?       // null = utilisations illimitées
+  usedCount   Int        @default(0)
+  isActive    Boolean    @default(true)
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  orders      Order[]
+
+  @@unique([shopId, code])
+  @@index([shopId, isActive])
+  @@map("coupons")
+}
+
+// Avis Clients 5 Étoiles & Réponses Vendeur
+model Review {
+  id          String    @id @default(uuid())
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  orderId     String?
+  rating      Int       // 1 à 5 étoiles
+  comment     String?   @db.Text
+  isApproved  Boolean   @default(true)
+  
+  vendorReply String?   @db.Text
+  repliedAt   DateTime?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([productId, userId]) // 1 avis unique par client et par article
+  @@index([productId])
+  @@map("reviews")
+}
+
+// Compteur de Visites Journalier & Analytique Top Produits
+model ProductView {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  date      DateTime @db.Date // YYYY-MM-DD
+  count     Int      @default(1)
+
+  @@unique([productId, date])
+  @@index([productId, date])
+  @@map("product_views")
 }

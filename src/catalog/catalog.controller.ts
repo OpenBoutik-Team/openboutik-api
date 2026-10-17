@@ -22,6 +22,8 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { UpdateStockDto } from './dto/update-stock.dto';
 import { QueryProductsDto } from './dto/query-products.dto';
 import { CreateCategoryDto } from './dto/create-category.dto';
+import { CreateProductVariantDto } from './dto/create-variant.dto';
+import { UpdateProductVariantDto } from './dto/update-variant.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -48,6 +50,22 @@ export class CatalogController {
   })
   async getAllProducts(@Query() query: QueryProductsDto) {
     return this.catalogService.findAllProducts(query);
+  }
+
+  @Get('products/me/low-stock')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENDOR)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Alertes stock critique de la boutique (Vendeur)',
+    description: 'Liste tous les articles ou variantes dont le stock physique actuel est inférieur ou égal au seuil d’alerte.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste des alertes de stock critique retournée avec succès',
+  })
+  async getLowStockProducts(@CurrentUser('id') vendorId: string) {
+    return this.catalogService.getLowStockProducts(vendorId);
   }
 
   @Get('products/:shopSlug/:productSlug')
@@ -168,6 +186,77 @@ export class CatalogController {
     @Param('id') productId: string,
   ) {
     return this.catalogService.deleteProduct(vendorId, productId);
+  }
+
+  // ----------------------------------------------------------------------------
+  // GESTION DES VARIANTES (Dev 2 - Tailles & Couleurs)
+  // ----------------------------------------------------------------------------
+
+  @Post('products/:id/variants')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENDOR)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Ajouter une déclinaison / variante à un produit (Vendeur)',
+    description: 'Crée une déclinaison (Taille, Couleur, Pointure...) avec son propre stock physique et prix en FCFA.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Variante créée avec succès',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Le prix barré de la variante est inférieur au prix de vente',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Ce produit appartient à un autre commerçant',
+  })
+  async createVariant(
+    @CurrentUser('id') vendorId: string,
+    @Param('id') productId: string,
+    @Body() dto: CreateProductVariantDto,
+  ) {
+    return this.catalogService.createVariant(vendorId, productId, dto);
+  }
+
+  @Patch('products/variants/:variantId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENDOR)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Modifier une déclinaison / variante de produit (Vendeur)',
+    description: 'Met à jour le stock, le prix ou les attributs d’une variante avec contrôle strict d’ownership.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Variante mise à jour avec succès',
+  })
+  async updateVariant(
+    @CurrentUser('id') vendorId: string,
+    @Param('variantId') variantId: string,
+    @Body() dto: UpdateProductVariantDto,
+  ) {
+    return this.catalogService.updateVariant(vendorId, variantId, dto);
+  }
+
+  @Delete('products/variants/:variantId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENDOR)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Supprimer une déclinaison / variante (Vendeur)',
+    description: 'Supprime définitivement une variante de produit.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Variante supprimée avec succès',
+  })
+  async deleteVariant(
+    @CurrentUser('id') vendorId: string,
+    @Param('variantId') variantId: string,
+  ) {
+    return this.catalogService.deleteVariant(vendorId, variantId);
   }
 
   @Post('categories')

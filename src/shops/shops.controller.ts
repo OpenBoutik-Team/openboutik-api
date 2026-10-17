@@ -20,6 +20,7 @@ import { ShopsService } from './shops.service';
 import { UpdateShopDto } from './dto/update-shop.dto';
 import { VerifyShopDto } from './dto/verify-shop.dto';
 import { SaveOnboardingStepDto, SubmitKycDto, ReviewKycDto } from './dto/onboarding.dto';
+import { SetVacationDto } from './dto/set-vacation.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -148,6 +149,25 @@ export class ShopsController {
     @Body() dto: UpdateShopDto,
   ) {
     return this.shopsService.updateVendorShop(vendorId, dto);
+  }
+
+  @Patch('me/vacation')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENDOR)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Activer ou désactiver le Mode Vacances de la boutique (Vendeur)',
+    description: 'Permet au commerçant de suspendre temporairement la prise de commandes tout en conservant sa vitrine et ses produits visibles sur la Marketplace.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Statut du mode vacances mis à jour avec succès',
+  })
+  async setVacationMode(
+    @CurrentUser('id') vendorId: string,
+    @Body() dto: SetVacationDto,
+  ) {
+    return this.shopsService.setVacationMode(vendorId, dto);
   }
 
   @Post()

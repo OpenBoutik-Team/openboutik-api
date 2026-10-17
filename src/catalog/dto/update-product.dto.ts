@@ -53,6 +53,15 @@ export class UpdateProductDto {
   stock?: number;
 
   @ApiPropertyOptional({
+    example: 3,
+    description: 'Seuil d’alerte de stock critique',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  lowStockThreshold?: number;
+
+  @ApiPropertyOptional({
     example: [
       'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=600',
     ],

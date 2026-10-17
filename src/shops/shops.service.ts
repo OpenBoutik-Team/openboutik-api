@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateShopDto } from './dto/update-shop.dto';
 import { SaveOnboardingStepDto, SubmitKycDto, ReviewKycDto } from './dto/onboarding.dto';
+import { SetVacationDto } from './dto/set-vacation.dto';
 import { Prisma, OrderStatus, KycStatus, SubscriptionPlan } from '../generated/prisma/client';
 
 @Injectable()
@@ -591,6 +592,50 @@ export class ShopsService {
     ]);
 
     return updatedShop;
+  }
+
+  /**
+   * Activation ou désactivation du Mode Vacances de la boutique (Dev 2)
+   */
+  async setVacationMode(ownerId: string, dto: SetVacationDto) {
+    const shop = await this.prisma.shop.findUnique({
+      where: { ownerId },
+    });
+
+    if (!shop) {
+      throw new NotFoundException('Boutique introuvable pour ce compte vendeur');
+    }
+
+    const [updatedShop] = await this.prisma.$transaction([
+      this.prisma.shop.update({
+        where: { id: shop.id },
+        data: {
+          isOnVacation: dto.isOnVacation,
+          vacationMessage: dto.isOnVacation ? dto.vacationMessage || null : null,
+        },
+      }),
+      this.prisma.auditLog.create({
+        data: {
+          userId: ownerId,
+          action: dto.isOnVacation ? 'SHOP_VACATION_MODE_ENABLED' : 'SHOP_VACATION_MODE_DISABLED',
+          entityType: 'SHOP',
+          entityId: shop.id,
+          metadata: {
+            shopName: shop.name,
+            slug: shop.slug,
+            vacationMessage: dto.vacationMessage,
+          },
+        },
+      }),
+    ]);
+
+    return {
+      id: updatedShop.id,
+      name: updatedShop.name,
+      slug: updatedShop.slug,
+      isOnVacation: updatedShop.isOnVacation,
+      vacationMessage: updatedShop.vacationMessage,
+    };
   }
 }
 

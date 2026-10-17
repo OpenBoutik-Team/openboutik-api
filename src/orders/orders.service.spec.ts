@@ -1,14 +1,23 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { SubscriptionPlan, DeliveryMethod } from '../generated/prisma/client';
+import {
+  SubscriptionPlan,
+  DeliveryMethod,
+  Role,
+} from '../generated/prisma/client';
 
 describe('OrdersService (Unit Tests)', () => {
   let service: OrdersService;
   let mockPrismaService: {
     product: { findMany: jest.Mock };
     order: { findUnique: jest.Mock; findMany: jest.Mock };
+    orderNote: { create: jest.Mock; findMany: jest.Mock };
+    shop: { findUnique: jest.Mock };
     $transaction: jest.Mock;
   };
 
@@ -20,6 +29,13 @@ describe('OrdersService (Unit Tests)', () => {
       order: {
         findUnique: jest.fn(),
         findMany: jest.fn(),
+      },
+      orderNote: {
+        create: jest.fn(),
+        findMany: jest.fn(),
+      },
+      shop: {
+        findUnique: jest.fn(),
       },
       $transaction: jest.fn(),
     };
@@ -136,6 +152,103 @@ describe('OrdersService (Unit Tests)', () => {
           deliveryPhone: '+221771234567',
         }),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('Mémos Internes Vendeur (OrderNotes & BOLA)', () => {
+    it('doit refuser l’ajout d’un mémo si le vendeur ne possède pas la boutique de la commande', async () => {
+      mockPrismaService.order.findUnique.mockResolvedValue({
+        id: 'order-1',
+        shop: { ownerId: 'vendeur-legitime' },
+      });
+
+      await expect(
+        service.addOrderNote('order-1', 'vendeur-usurpateur', {
+          text: 'Colis confié au livreur',
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('doit enregistrer un mémo si le vendeur est bien le propriétaire de la boutique', async () => {
+      mockPrismaService.order.findUnique.mockResolvedValue({
+        id: 'order-1',
+        shop: { ownerId: 'vendeur-legitime' },
+      });
+      mockPrismaService.orderNote.create.mockResolvedValue({
+        id: 'note-1',
+        orderId: 'order-1',
+        text: 'Colis confié au livreur Tiak-Tiak Moussa',
+      });
+
+      const note = await service.addOrderNote('order-1', 'vendeur-legitime', {
+        text: 'Colis confié au livreur Tiak-Tiak Moussa',
+      });
+
+      expect(note.text).toBe('Colis confié au livreur Tiak-Tiak Moussa');
+      expect(mockPrismaService.orderNote.create).toHaveBeenCalledWith({
+        data: {
+          orderId: 'order-1',
+          text: 'Colis confié au livreur Tiak-Tiak Moussa',
+        },
+      });
+    });
+
+    it('doit formellement interdire la lecture des mémos internes à un client', async () => {
+      await expect(
+        service.getOrderNotes('order-1', 'client-id', Role.CLIENT),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('doit renvoyer les mémos pour le vendeur propriétaire de la boutique', async () => {
+      mockPrismaService.order.findUnique.mockResolvedValue({
+        id: 'order-1',
+        shop: { ownerId: 'vendeur-1' },
+      });
+      mockPrismaService.orderNote.findMany.mockResolvedValue([
+        { id: 'note-1', text: 'Appeler avant de livrer' },
+      ]);
+
+      const notes = await service.getOrderNotes(
+        'order-1',
+        'vendeur-1',
+        Role.VENDOR,
+      );
+      expect(notes).toHaveLength(1);
+      expect(notes[0].text).toBe('Appeler avant de livrer');
+    });
+  });
+
+  describe('Sécurité Facturation & Reçus PDF (generateInvoicePdf)', () => {
+    it('doit refuser l’accès à la facture si le client n’est pas le commanditaire', async () => {
+      mockPrismaService.order.findUnique.mockResolvedValue({
+        id: 'order-1',
+        clientId: 'vrai-client',
+        shop: { ownerId: 'vendeur-1' },
+      });
+
+      const mockRes = {
+        setHeader: jest.fn(),
+      } as any;
+
+      await expect(
+        service.generateInvoicePdf('order-1', 'autre-client', Role.CLIENT, mockRes),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('doit refuser l’accès à la facture si un vendeur essaie d’accéder à la facture d’une autre boutique', async () => {
+      mockPrismaService.order.findUnique.mockResolvedValue({
+        id: 'order-1',
+        clientId: 'client-1',
+        shop: { ownerId: 'boutique-a' },
+      });
+
+      const mockRes = {
+        setHeader: jest.fn(),
+      } as any;
+
+      await expect(
+        service.generateInvoicePdf('order-1', 'vendeur-b', Role.VENDOR, mockRes),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 });

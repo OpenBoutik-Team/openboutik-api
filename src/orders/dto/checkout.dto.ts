@@ -22,6 +22,14 @@ export class CheckoutItemDto {
   @IsString()
   productId: string;
 
+  @ApiPropertyOptional({
+    example: 'uuid-de-la-variante',
+    description: 'Identifiant optionnel de la variante sélectionnée (taille, couleur...)',
+  })
+  @IsOptional()
+  @IsString()
+  variantId?: string;
+
   @ApiProperty({
     example: 1,
     description: 'Quantité d’exemplaires commandés (au moins 1)',
@@ -96,4 +104,12 @@ export class CheckoutDto {
   @IsNotEmpty({ message: 'Le fournisseur de paiement mobile est requis' })
   @IsEnum(PaymentProvider)
   paymentProvider: PaymentProvider;
+
+  @ApiPropertyOptional({
+    example: 'TABASKI20',
+    description: 'Code promotionnel unique à appliquer à la boutique émettrice',
+  })
+  @IsOptional()
+  @IsString()
+  couponCode?: string;
 }

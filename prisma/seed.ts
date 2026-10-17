@@ -1,22 +1,37 @@
 import 'dotenv/config';
 import * as bcrypt from 'bcryptjs';
-import { PrismaClient, Role, SubscriptionPlan, OrderStatus, EscrowStatus, PaymentProvider, DeliveryMethod } from '../src/generated/prisma/client';
+import {
+  PrismaClient,
+  Role,
+  SubscriptionPlan,
+  OrderStatus,
+  EscrowStatus,
+  PaymentProvider,
+  DeliveryMethod,
+  CouponType,
+} from '../src/generated/prisma/client';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 
-const connectionString = process.env.DATABASE_URL || 'mysql://root:@localhost:3306/openboutik_db';
+const connectionString =
+  process.env.DATABASE_URL || 'mysql://root:@localhost:3306/openboutik_db';
 const adapter = new PrismaMariaDb(connectionString);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  console.log('🌱 Démarrage du Seed réaliste OpenBoutik Sénégal...');
+  console.log('🌱 Démarrage du Seed réaliste OpenBoutik Sénégal (Roadmap V2 Espace Vendeur)...');
 
-  // Nettoyage préalable ordonné
+  // Nettoyage préalable ordonné respectant l'intégrité référentielle
   await prisma.auditLog.deleteMany();
   await prisma.dispute.deleteMany();
   await prisma.escrowTransaction.deleteMany();
+  await prisma.orderNote.deleteMany();
   await prisma.orderItem.deleteMany();
   await prisma.order.deleteMany();
   await prisma.checkoutSession.deleteMany();
+  await prisma.review.deleteMany();
+  await prisma.productView.deleteMany();
+  await prisma.productVariant.deleteMany();
+  await prisma.coupon.deleteMany();
   await prisma.product.deleteMany();
   await prisma.category.deleteMany();
   await prisma.walletPayout.deleteMany();
@@ -58,10 +73,13 @@ async function main() {
       ownerId: vendor1.id,
       name: 'Teranga Mode',
       slug: 'teranga-mode',
-      description: 'Couture haut de gamme, boubous traditionnels en bazin riche et prêt-à-porter sénégalais.',
+      description:
+        'Couture haut de gamme, boubous traditionnels en bazin riche et prêt-à-porter sénégalais.',
       mainCategory: 'Mode & Prêt-à-porter',
-      logoUrl: 'https://images.unsplash.com/photo-1544441893-675973e31985?w=400',
-      bannerUrl: 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=1200',
+      logoUrl:
+        'https://images.unsplash.com/photo-1544441893-675973e31985?w=400',
+      bannerUrl:
+        'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=1200',
       primaryColor: '#059669',
       whatsappNumber: '+221771234567',
       waveNumber: '+221771234567',
@@ -77,6 +95,7 @@ async function main() {
       address: 'Rue 11 angle Blaise Diagne, Médina',
       city: 'Dakar',
       isVerified: true,
+      isOnVacation: false,
       subscriptionPlan: SubscriptionPlan.PRO,
       wallet: {
         create: {
@@ -98,12 +117,14 @@ async function main() {
     },
   });
 
+  // Catégories boutique Teranga Mode
   const catModeHomme = await prisma.category.create({
     data: {
       shopId: shop1.id,
       name: 'Mode Homme',
       slug: 'mode-homme',
-      imageUrl: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=400',
+      imageUrl:
+        'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=400',
     },
   });
 
@@ -112,36 +133,104 @@ async function main() {
       shopId: shop1.id,
       name: 'Mode Femme',
       slug: 'mode-femme',
-      imageUrl: 'https://images.unsplash.com/photo-1581044777550-4cfa60707c03?w=400',
+      imageUrl:
+        'https://images.unsplash.com/photo-1581044777550-4cfa60707c03?w=400',
     },
   });
 
+  // Produit 1 avec Variantes & Seuil de stock critique
   const prod1 = await prisma.product.create({
     data: {
       shopId: shop1.id,
       categoryId: catModeHomme.id,
       name: 'Boubou Bazin Riche Brodé 3 Pièces',
       slug: 'boubou-bazin-riche-brode',
-      description: 'Bazin allemand Getzner teint à la main et brodé au fil de soie par nos maîtres artisans de la Médina.',
+      description:
+        'Bazin allemand Getzner teint à la main et brodé au fil de soie par nos maîtres artisans de la Médina.',
       priceFcfa: 35000,
       compareAtPriceFcfa: 40000,
       stock: 15,
-      images: ['https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=600'],
+      lowStockThreshold: 5,
+      images: [
+        'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=600',
+      ],
       isPublished: true,
+      variants: {
+        create: [
+          {
+            sku: 'BOUBOU-BN-XL',
+            priceFcfa: 35000,
+            compareAtPriceFcfa: 40000,
+            stock: 6,
+            attributes: { taille: 'XL', couleur: 'Bleu Nuit' },
+            isActive: true,
+          },
+          {
+            sku: 'BOUBOU-BN-L',
+            priceFcfa: 35000,
+            compareAtPriceFcfa: 40000,
+            stock: 5,
+            attributes: { taille: 'L', couleur: 'Bleu Nuit' },
+            isActive: true,
+          },
+          {
+            sku: 'BOUBOU-BC-XL',
+            priceFcfa: 38000,
+            compareAtPriceFcfa: 42000,
+            stock: 4,
+            attributes: { taille: 'XL', couleur: 'Blanc Cassé' },
+            isActive: true,
+          },
+        ],
+      },
     },
   });
 
+  // Produit 2 en alerte stock faible
   await prisma.product.create({
     data: {
       shopId: shop1.id,
       categoryId: catModeFemme.id,
       name: 'Robe Wax Moderne Thioup',
       slug: 'robe-wax-moderne-thioup',
-      description: 'Robe ajustée en véritable pagne wax hollandais avec empiècements contemporains.',
+      description:
+        'Robe ajustée en véritable pagne wax hollandais avec empiècements contemporains.',
       priceFcfa: 18000,
-      stock: 20,
-      images: ['https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=600'],
+      compareAtPriceFcfa: 22000,
+      stock: 2, // Inférieur au seuil -> alerte déclenchée
+      lowStockThreshold: 5,
+      images: [
+        'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=600',
+      ],
       isPublished: true,
+    },
+  });
+
+  // Codes Promotionnels Teranga Mode
+  const futureExpiry = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
+  await prisma.coupon.create({
+    data: {
+      shopId: shop1.id,
+      code: 'TABASKI20',
+      type: CouponType.PERCENTAGE,
+      value: 20,
+      expiryDate: futureExpiry,
+      maxUses: 50,
+      usedCount: 1,
+      isActive: true,
+    },
+  });
+
+  await prisma.coupon.create({
+    data: {
+      shopId: shop1.id,
+      code: 'KORITE5K',
+      type: CouponType.FIXED_FCFA,
+      value: 5000,
+      expiryDate: futureExpiry,
+      maxUses: 100,
+      usedCount: 0,
+      isActive: true,
     },
   });
 
@@ -162,10 +251,13 @@ async function main() {
       ownerId: vendor2.id,
       name: 'Dakar Tech Hub',
       slug: 'dakar-tech-hub',
-      description: 'Accessoires smartphones originaux, écouteurs Bluetooth et solutions de recharge rapide.',
+      description:
+        'Accessoires smartphones originaux, écouteurs Bluetooth et solutions de recharge rapide.',
       mainCategory: 'Électronique & High-Tech',
-      logoUrl: 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?w=400',
-      bannerUrl: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=1200',
+      logoUrl:
+        'https://images.unsplash.com/photo-1550009158-9ebf69173e03?w=400',
+      bannerUrl:
+        'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=1200',
       primaryColor: '#2563EB',
       whatsappNumber: '+221789876543',
       waveNumber: '+221789876543',
@@ -181,6 +273,7 @@ async function main() {
       address: 'Avenue William Ponty, Plateau',
       city: 'Dakar',
       isVerified: true,
+      isOnVacation: false,
       subscriptionPlan: SubscriptionPlan.FREE,
       wallet: {
         create: {
@@ -197,7 +290,8 @@ async function main() {
       shopId: shop2.id,
       name: 'Audio & Écouteurs',
       slug: 'audio-ecouteurs',
-      imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400',
+      imageUrl:
+        'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400',
     },
   });
 
@@ -207,16 +301,20 @@ async function main() {
       categoryId: catAudio.id,
       name: 'Écouteurs TWS Sans Fil Réduction de Bruit',
       slug: 'ecouteurs-tws-sans-fil',
-      description: 'Autonomie 36h, Bluetooth 5.3, résistance aux éclaboussures et micro HD.',
+      description:
+        'Autonomie 36h, Bluetooth 5.3, résistance aux éclaboussures et micro HD.',
       priceFcfa: 15000,
       compareAtPriceFcfa: 18000,
       stock: 30,
-      images: ['https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600'],
+      lowStockThreshold: 5,
+      images: [
+        'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600',
+      ],
       isPublished: true,
     },
   });
 
-  // 4. Client Acheteur : Fatou Ndiaye (Mermoz, Dakar)
+  // 4. Clients Acheteurs
   const client1 = await prisma.user.create({
     data: {
       email: 'client.fatou@gmail.com',
@@ -227,9 +325,9 @@ async function main() {
       acceptedTermsAt: new Date(),
     },
   });
-  console.log(`✅ Client test créé : ${client1.email} (${client1.phone})`);
+  console.log(`✅ Client 1 créé : ${client1.email} (${client1.phone})`);
 
-  // 5. Commande Test avec Séquestre Actif (PAID_ESCROW)
+  // 5. Commande 1 : En Séquestre Actif (PAID_ESCROW) avec Mémo Interne Vendeur
   const checkoutSession = await prisma.checkoutSession.create({
     data: {
       clientId: client1.id,
@@ -282,6 +380,97 @@ async function main() {
           heldAt: new Date(),
         },
       },
+      notes: {
+        create: [
+          {
+            text: 'Cliente régulière de Mermoz, livreur Tiak-Tiak Moussa prévenu pour le portail vert.',
+          },
+        ],
+      },
+    },
+  });
+
+  // 6. Commande 2 : Livrée et Confirmée (DELIVERED_CONFIRMED) pour Avis Client
+  const deliveredOrder = await prisma.order.create({
+    data: {
+      orderNumber: 'OB-2026-0002',
+      clientId: client1.id,
+      shopId: shop1.id,
+      subtotalFcfa: 35000,
+      deliveryFeeFcfa: 2000,
+      totalAmountFcfa: 37000,
+      commissionRate: 3,
+      commissionAmountFcfa: 1050,
+      netVendorAmountFcfa: 33950,
+      deliveryMethod: DeliveryMethod.TIAK_TIAK,
+      deliveryAddress: 'Villa 142, Mermoz Pyrotechnie',
+      deliveryCity: 'Dakar',
+      deliveryPhone: '+221765432109',
+      deliveryConfirmationCode: '918273',
+      status: OrderStatus.DELIVERED_CONFIRMED,
+      deliveredAt: new Date(),
+      items: {
+        create: [
+          {
+            productId: prod1.id,
+            productName: prod1.name,
+            unitPriceFcfa: 35000,
+            quantity: 1,
+            totalPriceFcfa: 35000,
+          },
+        ],
+      },
+      escrow: {
+        create: {
+          totalAmountFcfa: 37000,
+          commissionAmountFcfa: 1050,
+          netVendorAmountFcfa: 33950,
+          paymentProvider: PaymentProvider.WAVE,
+          providerReference: 'WAVE_SN_TXN_20261014_002',
+          status: EscrowStatus.RELEASED_TO_VENDOR,
+          heldAt: new Date(Date.now() - 86400000 * 2),
+          releasedAt: new Date(),
+        },
+      },
+    },
+  });
+
+  // Avis Client 5 Étoiles avec Réponse Vendeur Officielle
+  await prisma.review.create({
+    data: {
+      productId: prod1.id,
+      userId: client1.id,
+      orderId: deliveredOrder.id,
+      rating: 5,
+      comment:
+        'Le tissu Bazin Getzner est d’une qualité somptueuse ! La coupe est parfaite et la livraison Tiak-Tiak à Mermoz a été très rapide.',
+      isApproved: true,
+      vendorReply:
+        'Jërëjëf Fatou pour votre confiance et fidélité chez Teranga Mode ! À très bientôt pour la Tabaski.',
+      repliedAt: new Date(),
+    },
+  });
+
+  // Tracking de visites (ProductViews) sur prod1
+  const todayUtc = new Date();
+  todayUtc.setUTCHours(0, 0, 0, 0);
+
+  const yesterdayUtc = new Date(Date.now() - 86400000);
+  yesterdayUtc.setUTCHours(0, 0, 0, 0);
+
+  await prisma.productView.create({
+    data: {
+      productId: prod1.id,
+      date: todayUtc,
+      count: 64,
+    },
+  });
+
+  await prisma.productView.create({
+    data: {
+      productId: prod1.id,
+      date: yesterdayUtc,
+      count: 48,
     },
   });
 
@@ -300,8 +489,9 @@ async function main() {
     },
   });
 
-  console.log(`✅ Commande test avec séquestre bloqué créée : ${testOrder.orderNumber} (OTP: 482910)`);
-  console.log('🚀 Seed terminé avec succès ! Mot de passe universel de test : Passer123!');
+  console.log(`✅ Commande séquestre : ${testOrder.orderNumber} (OTP: 482910)`);
+  console.log(`✅ Commande confirmée livrée : ${deliveredOrder.orderNumber}`);
+  console.log('🚀 Seed V2 complet (Variantes, Coupons TABASKI20, Mémos, Avis 5★, Tracking Vues) !');
 }
 
 main()

@@ -262,3 +262,147 @@ Réservé aux administrateurs de la plateforme pour la certification et les arbi
   * `GET /escrow/overview` : Totalisé des fonds en séquestre, gelés et reversés.
 * **Déclenchement du cron d'auto-déblocage 24h :**
   * `POST /escrow/auto-release`
+
+---
+
+## 🚀 PARTIE 3 : NOUVELLES FONCTIONNALITÉS ROADMAP V2 (OCTOBRE 2026)
+
+### 🛒 1. Pour Dev 1 (Marketplace Acheteur)
+
+#### A. Sélection des Variantes (Tailles & Couleurs)
+* Chaque produit retourné par `GET /products` et `GET /products/:shopSlug/:productSlug` inclut désormais son tableau `variants` :
+  ```json
+  {
+    "id": "uuid-variante",
+    "sku": "BOUBOU-BN-XL",
+    "priceFcfa": 35000,
+    "compareAtPriceFcfa": 40000,
+    "stock": 6,
+    "attributes": { "taille": "XL", "couleur": "Bleu Nuit" },
+    "isActive": true
+  }
+  ```
+* Lors de l'ajout au panier et du checkout, renseigner le champ optionnel `variantId` :
+  ```json
+  {
+    "items": [
+      { "productId": "uuid-produit", "variantId": "uuid-variante", "quantity": 1 }
+    ]
+  }
+  ```
+
+#### B. Affichage du Mode Vacances
+* Si `shop.isOnVacation === true`, la vitrine et les fiches produits restent visibles mais un bandeau d'information doit s'afficher :
+  * Afficher `shop.vacationMessage` (ex: *"Boutique fermée pour le Magal jusqu’à lundi"*).
+  * Désactiver le bouton « Acheter » ou « Ajouter au panier ».
+
+#### C. Validation & Application de Codes Promo
+* **Tester un code promo avant paiement :**
+  * `POST /coupons/validate`
+  * **Body :**
+    ```json
+    {
+      "code": "TABASKI20",
+      "shopId": "uuid-de-la-boutique",
+      "subtotalFcfa": 50000
+    }
+    ```
+  * **Retourne :**
+    ```json
+    {
+      "valid": true,
+      "couponId": "uuid-coupon",
+      "code": "TABASKI20",
+      "type": "PERCENTAGE",
+      "value": 20,
+      "discountAmountFcfa": 10000,
+      "newSubtotalFcfa": 40000
+    }
+    ```
+* **Application au Checkout :**
+  * Passer `couponCode` dans le body de `POST /orders/checkout` :
+    ```json
+    {
+      "items": [ ... ],
+      "couponCode": "TABASKI20",
+      "deliveryAddress": "Mermoz, Dakar",
+      "deliveryPhone": "+221765432109",
+      "paymentProvider": "WAVE"
+    }
+    ```
+
+#### D. Avis Clients & Notation 5 Étoiles (Achat Vérifié)
+* **Consulter les avis d'un produit (Public) :**
+  * `GET /products/:productId/reviews`
+  * Retourne la note moyenne `averageRating` (ex: 4.8), le total d'avis `totalReviews` et les avis avec prénoms anonymisés (ex: *"Fatou S."*) et réponses vendeur.
+* **Publier un avis (Client avec commande livrée `DELIVERED_CONFIRMED`) :**
+  * `POST /products/:productId/reviews`
+  * **Body :**
+    ```json
+    {
+      "rating": 5,
+      "comment": "Tissu de qualité supérieure, livraison rapide par Tiak-Tiak !"
+    }
+    ```
+
+#### E. Téléchargement du Reçu d'Achat PDF
+* `GET /orders/:id/invoice`
+* Retourne un flux binaire (`Content-Type: application/pdf`) téléchargeable directement.
+
+#### F. Tracking Automatique des Visites
+* À chaque affichage d'une page produit, envoyer un appel non-bloquant :
+  * `POST /products/:id/view`
+
+---
+
+### 💼 2. Pour Dev 2 (Espace Marchand & Back-Office Vendeur)
+
+#### A. Gestion des Variantes de Produits
+* `POST /products/:id/variants` : Créer une déclinaison (taille, couleur, stock dédié, prix spécifique).
+* `PATCH /products/variants/:variantId` : Mettre à jour le stock ou le prix d'une variante.
+* `DELETE /products/variants/:variantId` : Supprimer une déclinaison.
+
+#### B. Alertes de Seuil de Stock Critique
+* Configuration dans la création/mise à jour produit via `lowStockThreshold` (entier).
+* `GET /products/me/low-stock` : Tableau de bord de réapprovisionnement listant les produits dont `currentStock <= threshold` avec le flag `isLowStock: true`.
+
+#### C. Activation / Désactivation du Mode Vacances
+* `PATCH /shops/me/vacation`
+* **Body :**
+  ```json
+  {
+    "isOnVacation": true,
+    "vacationMessage": "Boutique fermée pour congés annuels du 10 au 20 octobre."
+  }
+  ```
+
+#### D. Générateur de Codes Promotionnels Marchand
+* `POST /coupons` : Créer un code promo (`PERCENTAGE` ou `FIXED_FCFA`, date d'expiration, quota `maxUses`).
+* `GET /coupons` : Liste des codes promo actifs et expirés de la boutique.
+* `PATCH /coupons/:id` : Ajuster la valeur, prolonger la date ou désactiver le code.
+* `DELETE /coupons/:id` : Supprimer définitivement un code promo.
+
+#### E. Mémos Internes Vendeur sur Commandes
+* `POST /orders/:id/notes` : Ajouter une note interne (ex: *"Client appelé, livraison reportée à 17h"*).
+* `GET /orders/:id/notes` : Historique des notes internes confidentielles (strictement invisibles pour le client acheteur).
+
+#### F. Factures & Reçus Marchand
+* `GET /orders/:id/invoice` : Téléchargement du reçu officiel PDF de la commande avec mentions légales.
+
+#### G. Modération & Réponses aux Avis Clients
+* `PATCH /reviews/:id/reply`
+* **Body :**
+  ```json
+  {
+    "reply": "Merci beaucoup pour votre commande et votre confiance !"
+  }
+  ```
+
+#### H. Dashboard Analytique & Top 5 Mensuel
+* `GET /analytics/top-products`
+* Retourne pour le mois en cours les 5 meilleures ventes avec :
+  * Chiffre d'affaires cumulé en FCFA (`totalRevenueFcfa`)
+  * Nombre d'unités vendues (`totalUnitsSold`)
+  * Nombre de visites cumulées (`totalViews`)
+  * Taux de conversion exact (`conversionRate` en %)
+

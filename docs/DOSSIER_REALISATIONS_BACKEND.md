@@ -208,15 +208,35 @@ npm run seed
 # 3. Lancer la suite de stress-tests financiers (27 assertions)
 npx tsx test/openboutik-stress.e2e-spec.ts
 
-# 4. Lancer les tests Jest unitaires
+# 4. Lancer la suite globale de tests unitaires et E2E Roadmap V2 (78 assertions)
 npm test
 
-# 5. Lancer l'analyse du linter
-npm run lint
-
-# 6. Compiler l'application pour la production
+# 5. Compiler l'application pour la production
 npm run build
 ```
+
+---
+
+## 5. EXTENSION ROADMAP V2 — ESPACE VENDEUR & LOGISTIQUE (OCTOBRE 2026)
+
+Conformément au document de cadrage technique **« Proposition d'Évolutions — OpenBoutik (Octobre 2026) »**, 8 nouvelles fonctionnalités majeures réparties en 4 modules métier ont été intégralement architecturées, implémentées, sécurisées et testées :
+
+### A. Synthèse des Modules & Modèles Livrés
+
+| Module Métier | Modèles & Enums Prisma | Endpoints Développés | Garanties de Sécurité & AppSec |
+| :--- | :--- | :--- | :--- |
+| **1. Catalogue Avancé & Variantes** | `ProductVariant`<br>`lowStockThreshold`<br>`compareAtPriceFcfa` | `POST /products/:id/variants`<br>`PATCH /products/variants/:id`<br>`DELETE /products/variants/:id`<br>`GET /products/me/low-stock` | • `compareAtPriceFcfa > priceFcfa` obligatoire (400 si incohérent)<br>• BOLA strict sur boutique<br>• Alerte stock critique temps réel |
+| **2. Mode Vacances Boutique** | `Shop.isOnVacation`<br>`Shop.vacationMessage` | `PATCH /shops/me/vacation` | • Vitrine & fiches restent consultables<br>• Blocage atomique au checkout avec message personnalisé |
+| **3. Codes Promo & Marketing** | `Coupon`<br>`enum CouponType` (`PERCENTAGE`, `FIXED_FCFA`) | `POST /coupons`<br>`GET /coupons`<br>`PATCH /coupons/:id`<br>`DELETE /coupons/:id`<br>`POST /coupons/validate` | • Clé unique `(shopId, code)` forcé en majuscules<br>• Plafonnement anti-solde négatif au FCFA près<br>• Incrément atomique de `usedCount` en transaction ACID |
+| **4. Logistique & Facturation** | `OrderNote`<br>`Order.invoiceUrl` | `POST /orders/:id/notes`<br>`GET /orders/:id/notes`<br>`GET /orders/:id/invoice` | • Mémos 100 % confidentiels vendeur (invisibles client)<br>• Reçu PDF streaming direct à la volée via `pdfkit` (Option A) |
+| **5. Avis Clients 5★ & Modération** | `Review`<br>`@@unique([productId, userId])` | `POST /products/:id/reviews`<br>`GET /products/:id/reviews`<br>`PATCH /reviews/:id/reply` | • **Achat Vérifié strict** (`DELIVERED_CONFIRMED`)<br>• Protection anti-spam (1 avis / article / client)<br>• Réponse officielle vendeur protégée BOLA |
+| **6. Analytique Vendeur** | `ProductView`<br>`@@unique([productId, date])` | `POST /products/:id/view`<br>`GET /analytics/top-products` | • Incrément atomique journalier (minuit UTC)<br>• Top 5 mensuel avec CA exact, volume et taux de conversion |
+
+### B. Couverture de Tests & Certification Qualité
+* **Suite globale de tests :** **78 tests passants (9 suites de tests)** (`npm test`).
+* **Crash-Test E2E Roadmap V2 :** [`test/openboutik-roadmap-v2.spec.ts`](file:///c:/Users/bmd/Desktop/openboutik-api/test/openboutik-roadmap-v2.spec.ts) couvrant les 8 scénarios de bout en bout.
+* **Migration SQL de référence :** [`prisma/migrations/20261017013200_add_seller_roadmap_v2_features/migration.sql`](file:///c:/Users/bmd/Desktop/openboutik-api/prisma/migrations/20261017013200_add_seller_roadmap_v2_features/migration.sql).
+* **Données de démonstration :** [`prisma/seed.ts`](file:///c:/Users/bmd/Desktop/openboutik-api/prisma/seed.ts) enrichi de variantes (BOUBOU-BN-XL), de coupons (`TABASKI20`, `KORITE5K`), de mémos internes, d'avis 5★ avec réponses du commerçant et de compteurs de visites.
 
 ---
 

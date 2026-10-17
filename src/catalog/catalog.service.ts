@@ -3,10 +3,13 @@ import {
   NotFoundException,
   ConflictException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { CreateProductVariantDto } from './dto/create-variant.dto';
+import { UpdateProductVariantDto } from './dto/update-variant.dto';
 import { Prisma } from '../generated/prisma/client';
 import { QueryProductsDto, ProductSortBy } from './dto/query-products.dto';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -147,6 +150,17 @@ export class CatalogService {
           category: {
             select: { id: true, name: true, slug: true },
           },
+          variants: {
+            where: { isActive: true },
+            select: {
+              id: true,
+              sku: true,
+              priceFcfa: true,
+              compareAtPriceFcfa: true,
+              stock: true,
+              attributes: true,
+            },
+          },
           shop: {
             select: {
               id: true,
@@ -163,8 +177,13 @@ export class CatalogService {
       }),
     ]);
 
+    const mappedProducts = products.map((p) => ({
+      ...p,
+      isLowStock: p.stock > 0 && p.stock <= p.lowStockThreshold,
+    }));
+
     return {
-      data: products,
+      data: mappedProducts,
       meta: {
         total,
         page,
@@ -188,6 +207,23 @@ export class CatalogService {
       },
       include: {
         category: true,
+        variants: {
+          where: { isActive: true },
+          orderBy: { priceFcfa: 'asc' },
+        },
+        reviews: {
+          where: { isApproved: true },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+          include: {
+            user: {
+              select: {
+                id: true,
+                fullName: true,
+              },
+            },
+          },
+        },
         shop: {
           select: {
             id: true,
@@ -210,7 +246,10 @@ export class CatalogService {
       throw new NotFoundException(`Produit introuvable dans la boutique "${shopSlug}"`);
     }
 
-    return product;
+    return {
+      ...product,
+      isLowStock: product.stock > 0 && product.stock <= product.lowStockThreshold,
+    };
   }
 
   /**
@@ -223,6 +262,13 @@ export class CatalogService {
 
     if (!shop) {
       throw new NotFoundException('Boutique introuvable pour ce compte vendeur');
+    }
+
+    // Règle d'or : compareAtPriceFcfa doit être strictement supérieur au prix de vente
+    if (dto.compareAtPriceFcfa !== undefined && dto.compareAtPriceFcfa !== null) {
+      if (dto.compareAtPriceFcfa <= dto.priceFcfa) {
+        throw new BadRequestException('Le prix barré doit être strictement supérieur au prix de vente actuel');
+      }
     }
 
     const slug = dto.slug ? dto.slug.toLowerCase().trim() : this.slugify(dto.name);
@@ -250,11 +296,13 @@ export class CatalogService {
         priceFcfa: dto.priceFcfa,
         compareAtPriceFcfa: dto.compareAtPriceFcfa,
         stock: dto.stock,
+        lowStockThreshold: dto.lowStockThreshold ?? 0,
         images: dto.images,
         isPublished: dto.isPublished !== undefined ? dto.isPublished : true,
       },
       include: {
         category: true,
+        variants: true,
       },
     });
   }
@@ -265,11 +313,24 @@ export class CatalogService {
   async updateProduct(ownerId: string, productId: string, dto: UpdateProductDto) {
     const product = await this.findAndVerifyOwnership(ownerId, productId);
 
+    const targetPrice = dto.priceFcfa ?? product.priceFcfa;
+    const targetCompare =
+      dto.compareAtPriceFcfa !== undefined
+        ? dto.compareAtPriceFcfa
+        : product.compareAtPriceFcfa;
+
+    if (targetCompare !== null && targetCompare !== undefined) {
+      if (targetCompare <= targetPrice) {
+        throw new BadRequestException('Le prix barré doit être strictement supérieur au prix de vente actuel');
+      }
+    }
+
     return this.prisma.product.update({
       where: { id: product.id },
       data: dto,
       include: {
         category: true,
+        variants: true,
       },
     });
   }
@@ -297,6 +358,168 @@ export class CatalogService {
     });
 
     return { message: 'Produit supprimé avec succès' };
+  }
+
+  // ----------------------------------------------------------------------------
+  // VARIANTES DE PRODUITS (TAILLES, COULEURS, ATTRIBUTS)
+  // ----------------------------------------------------------------------------
+
+  /**
+   * Création d'une déclinaison / variante pour un produit existant (Dev 2)
+   */
+  async createVariant(ownerId: string, productId: string, dto: CreateProductVariantDto) {
+    const product = await this.findAndVerifyOwnership(ownerId, productId);
+
+    if (dto.compareAtPriceFcfa !== undefined && dto.compareAtPriceFcfa !== null) {
+      if (dto.compareAtPriceFcfa <= dto.priceFcfa) {
+        throw new BadRequestException('Le prix barré de la variante doit être strictement supérieur à son prix de vente');
+      }
+    }
+
+    return this.prisma.productVariant.create({
+      data: {
+        productId: product.id,
+        sku: dto.sku,
+        priceFcfa: dto.priceFcfa,
+        compareAtPriceFcfa: dto.compareAtPriceFcfa,
+        stock: dto.stock,
+        attributes: dto.attributes,
+        isActive: dto.isActive !== undefined ? dto.isActive : true,
+      },
+    });
+  }
+
+  /**
+   * Modification d'une déclinaison / variante
+   */
+  async updateVariant(ownerId: string, variantId: string, dto: UpdateProductVariantDto) {
+    const variant = await this.prisma.productVariant.findUnique({
+      where: { id: variantId },
+      include: {
+        product: {
+          include: { shop: true },
+        },
+      },
+    });
+
+    if (!variant) {
+      throw new NotFoundException('Variante introuvable');
+    }
+
+    if (variant.product.shop.ownerId !== ownerId) {
+      throw new ForbiddenException('Vous n’avez pas le droit de modifier une variante appartenant à une autre boutique');
+    }
+
+    const targetPrice = dto.priceFcfa ?? variant.priceFcfa;
+    const targetCompare =
+      dto.compareAtPriceFcfa !== undefined
+        ? dto.compareAtPriceFcfa
+        : variant.compareAtPriceFcfa;
+
+    if (targetCompare !== null && targetCompare !== undefined) {
+      if (targetCompare <= targetPrice) {
+        throw new BadRequestException('Le prix barré de la variante doit être strictement supérieur à son prix de vente');
+      }
+    }
+
+    return this.prisma.productVariant.update({
+      where: { id: variantId },
+      data: dto,
+    });
+  }
+
+  /**
+   * Suppression d'une déclinaison / variante
+   */
+  async deleteVariant(ownerId: string, variantId: string) {
+    const variant = await this.prisma.productVariant.findUnique({
+      where: { id: variantId },
+      include: {
+        product: {
+          include: { shop: true },
+        },
+      },
+    });
+
+    if (!variant) {
+      throw new NotFoundException('Variante introuvable');
+    }
+
+    if (variant.product.shop.ownerId !== ownerId) {
+      throw new ForbiddenException('Vous n’avez pas le droit de supprimer une variante appartenant à une autre boutique');
+    }
+
+    await this.prisma.productVariant.delete({
+      where: { id: variantId },
+    });
+
+    return { message: 'Variante supprimée avec succès' };
+  }
+
+  // ----------------------------------------------------------------------------
+  // ALERTES STOCK BAS (DEV 2)
+  // ----------------------------------------------------------------------------
+
+  /**
+   * Liste des alertes de stock critique de la boutique
+   */
+  async getLowStockProducts(ownerId: string) {
+    const shop = await this.prisma.shop.findUnique({
+      where: { ownerId },
+    });
+
+    if (!shop) {
+      throw new NotFoundException('Boutique introuvable pour ce compte vendeur');
+    }
+
+    const products = await this.prisma.product.findMany({
+      where: {
+        shopId: shop.id,
+        isPublished: true,
+      },
+      include: {
+        variants: {
+          where: { isActive: true },
+        },
+      },
+      orderBy: { stock: 'asc' },
+    });
+
+    const lowStockAlerts = [];
+
+    for (const prod of products) {
+      const isProductLow = prod.stock <= prod.lowStockThreshold;
+      const criticalVariants = prod.variants.filter(
+        (v) => v.stock <= prod.lowStockThreshold,
+      );
+
+      if (isProductLow || criticalVariants.length > 0) {
+        lowStockAlerts.push({
+          productId: prod.id,
+          productName: prod.name,
+          slug: prod.slug,
+          currentStock: prod.stock,
+          threshold: prod.lowStockThreshold,
+          isProductOutOfStock: prod.stock === 0,
+          isLowStock: isProductLow,
+          variantsCount: prod.variants.length,
+          criticalVariants: criticalVariants.map((v) => ({
+            id: v.id,
+            sku: v.sku,
+            attributes: v.attributes,
+            stock: v.stock,
+            isOutOfStock: v.stock === 0,
+          })),
+        });
+      }
+    }
+
+    return {
+      shopId: shop.id,
+      shopName: shop.name,
+      totalAlerts: lowStockAlerts.length,
+      alerts: lowStockAlerts,
+    };
   }
 
   /**

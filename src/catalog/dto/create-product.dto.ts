@@ -62,6 +62,16 @@ export class CreateProductDto {
   @Min(0, { message: 'Le stock ne peut pas être négatif' })
   stock: number;
 
+  @ApiPropertyOptional({
+    example: 3,
+    description: 'Seuil d’alerte de stock faible pour le commerçant (par défaut 0)',
+    default: 0,
+  })
+  @IsOptional()
+  @IsInt({ message: 'Le seuil de stock faible doit être un entier' })
+  @Min(0)
+  lowStockThreshold?: number;
+
   @ApiProperty({
     example: [
       'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=600',

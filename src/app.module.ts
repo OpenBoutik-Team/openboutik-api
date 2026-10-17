@@ -11,6 +11,9 @@ import { OrdersModule } from './orders/orders.module';
 import { EscrowModule } from './escrow/escrow.module';
 import { DisputesModule } from './disputes/disputes.module';
 import { WalletsModule } from './wallets/wallets.module';
+import { CouponsModule } from './coupons/coupons.module';
+import { ReviewsModule } from './reviews/reviews.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -33,6 +36,9 @@ import { AppService } from './app.service';
     EscrowModule,
     DisputesModule,
     WalletsModule,
+    CouponsModule,
+    ReviewsModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [
