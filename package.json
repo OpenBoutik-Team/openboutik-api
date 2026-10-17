@@ -20,11 +20,11 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config ./test/jest-e2e.json --runInBand",
-    "test:stress": "tsx test/openboutik-stress.e2e-spec.ts",
-    "test:chaos": "tsx test/openboutik-chaos-extreme.e2e-spec.ts",
-    "test:pentest": "tsx test/openboutik-pentest.e2e-spec.ts",
-    "test:onboarding": "tsx test/openboutik-onboarding-kyc.e2e-spec.ts",
-    "test:certification": "tsx test/openboutik-certification.e2e-spec.ts",
+    "test:stress": "tsx test/openboutik-stress.runner.ts",
+    "test:chaos": "tsx test/openboutik-chaos-extreme.runner.ts",
+    "test:pentest": "tsx test/openboutik-pentest.runner.ts",
+    "test:onboarding": "tsx test/openboutik-onboarding-kyc.runner.ts",
+    "test:certification": "tsx test/openboutik-certification.runner.ts",
     "seed": "npx tsx prisma/seed.ts"
   },
   "dependencies": {

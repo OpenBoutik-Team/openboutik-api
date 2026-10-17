@@ -13,7 +13,8 @@ const paths = tsconfig?.compilerOptions?.paths ?? {};
 const config: Config = {
   moduleFileExtensions: ['js', 'json', 'ts'],
   rootDir: '.',
-  testRegex: '.*(\\.spec\\.ts|v2-certification\\.e2e-spec\\.ts)$',
+  roots: ['<rootDir>/src'],
+  testRegex: '.*\\.spec\\.ts$',
   transform: {
     '^.+\\.(t|j)s$': 'ts-jest',
   },
