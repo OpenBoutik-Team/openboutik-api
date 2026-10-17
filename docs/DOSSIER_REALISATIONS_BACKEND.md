@@ -4,8 +4,8 @@
 > **Organisation :** `OpenBoutik-Team`  
 > **Dépôt :** `openboutik-api`  
 > **Branche de référence :** `develop`  
-> **Auteur & Lead Technique :** Bécaye Ndiaye (Développeur 3 — Backend, Séquestre & Base de Données)  
-> **Date de finalisation :** 14 Octobre 2026  
+> **Auteur & Lead Technique :** Bécaye Doumbouya (Développeur 3 — Backend, Séquestre & Base de Données)  
+> **Date de finalisation :** 17 Octobre 2026  
 > **Statut global :** ✅ **100 % Opérationnel, Blindé par Stress-Tests & Pushé sur GitHub**
 
 ---
