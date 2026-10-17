@@ -15,17 +15,7 @@ const config: Config = {
   rootDir: '.',
   testRegex: '.*(\\.spec\\.ts|v2-certification\\.e2e-spec\\.ts)$',
   transform: {
-    '^.+\\.(t|j)s$': [
-      'ts-jest',
-      {
-        tsconfig: {
-          module: 'commonjs',
-          moduleResolution: 'node16',
-          esModuleInterop: true,
-          allowSyntheticDefaultImports: true,
-        },
-      },
-    ],
+    '^.+\\.(t|j)s$': 'ts-jest',
   },
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
