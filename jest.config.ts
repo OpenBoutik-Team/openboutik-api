@@ -15,10 +15,21 @@ const config: Config = {
   rootDir: '.',
   testRegex: '.*(\\.spec\\.ts|v2-certification\\.e2e-spec\\.ts)$',
   transform: {
-    '^.+\\.(t|j)s$': 'ts-jest',
+    '^.+\\.(t|j)s$': [
+      'ts-jest',
+      {
+        tsconfig: {
+          module: 'commonjs',
+          moduleResolution: 'node16',
+          esModuleInterop: true,
+          allowSyntheticDefaultImports: true,
+        },
+      },
+    ],
   },
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
+    '^src/(.*)$': '<rootDir>/src/$1',
     ...pathsToModuleNameMapper(paths, { prefix: '<rootDir>/' }),
   },
   collectCoverageFrom: [
