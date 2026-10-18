@@ -1,114 +1,144 @@
 <p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
+  <img src="https://nestjs.com/img/logo-small.svg" width="220" alt="OpenBoutik Lion Head Logo" />
 </p>
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+<h1 align="center">🦁 OpenBoutik — Moteur E-Commerce & Marketplace Sécurisée</h1>
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
+<p align="center">
+  <b>Plateforme E-Commerce multi-vendeurs avec Séquestre Financier Garanti, Négociation en direct (« Wakhale »), Live Shopping temps réel et Paiement Fractionné (BNPL 3x/4x).</b>
 </p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
-## Description
+<p align="center">
+  <!-- Backend Core Stack -->
+  <a href="https://nestjs.com/"><img src="https://img.shields.io/badge/NestJS-E0234E?style=for-the-badge&logo=nestjs&logoColor=white" alt="NestJS" /></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" /></a>
+  <a href="https://developer.mozilla.org/fr/docs/Web/JavaScript"><img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" alt="JavaScript" /></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="NodeJS" /></a>
+  <a href="https://www.prisma.io/"><img src="https://img.shields.io/badge/Prisma_ORM-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma" /></a>
+  <a href="https://www.mysql.com/"><img src="https://img.shields.io/badge/MySQL_8-4479A1?style=for-the-badge&logo=mysql&logoColor=white" alt="MySQL" /></a>
+  <a href="https://socket.io/"><img src="https://img.shields.io/badge/Socket.io-010101?style=for-the-badge&logo=socketdotio&logoColor=white" alt="Socket.io" /></a>
+</p>
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+<p align="center">
+  <!-- Frontend Stack (Marketplace & Seller Hub) -->
+  <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js" /></a>
+  <a href="https://react.dev/"><img src="https://img.shields.io/badge/React_19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React" /></a>
+  <a href="https://developer.mozilla.org/fr/docs/Web/HTML"><img src="https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white" alt="HTML5" /></a>
+  <a href="https://developer.mozilla.org/fr/docs/Web/CSS"><img src="https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white" alt="CSS3" /></a>
+  <a href="https://tailwindcss.com/"><img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind CSS" /></a>
+  <a href="https://axios-http.com/"><img src="https://img.shields.io/badge/Axios-5A29E4?style=for-the-badge&logo=axios&logoColor=white" alt="Axios" /></a>
+</p>
 
-## Project setup
+<p align="center">
+  <!-- Cloud, Deployment & DevOps -->
+  <a href="https://vercel.com/"><img src="https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Vercel" /></a>
+  <a href="https://render.com/"><img src="https://img.shields.io/badge/Render_Cloud-46E3B7?style=for-the-badge&logo=render&logoColor=white" alt="Render" /></a>
+  <a href="https://www.clever-cloud.com/"><img src="https://img.shields.io/badge/Clever_Cloud-2E86DE?style=for-the-badge&logoColor=white" alt="Clever Cloud" /></a>
+  <a href="https://jestjs.io/"><img src="https://img.shields.io/badge/Jest-C21325?style=for-the-badge&logo=jest&logoColor=white" alt="Jest" /></a>
+  <a href="https://jwt.io/"><img src="https://img.shields.io/badge/JWT_Auth-black?style=for-the-badge&logo=JSON%20web%20tokens" alt="JWT" /></a>
+  <a href="https://swagger.io/"><img src="https://img.shields.io/badge/Swagger_OpenAPI-85EA2D?style=for-the-badge&logo=swagger&logoColor=black" alt="Swagger" /></a>
+</p>
 
-```bash
-$ npm install
+---
+
+## 👥 Équipe d'Ingénierie OpenBoutik
+
+| Rôle | Développeur | GitHub | Dépôt Assigné & Périmètre |
+| :--- | :--- | :--- | :--- |
+| **Lead Backend Engineer (Dev 3)** | **Bécaye Doumbouya** | [@HYPNOTYZEDCHART](https://github.com/HYPNOTYZEDCHART) | [`openboutik-api`](https://github.com/OpenBoutik-Team/openboutik-api) — Core Engine, Séquestre, Wakhale, Live Shopping, BNPL, DB |
+| **Lead Frontend Marketplace (Dev 1)** | **El hadji Mor** | [@akhy-m00](https://github.com/akhy-m00) | [`openboutik-marketplace`](https://github.com/OpenBoutik-Team/openboutik-marketplace) (Port 3000) — Tunnel Achat, Catalogue, Profil Client |
+| **Lead Frontend Seller (Dev 2)** | **Mansour** | [@mansss7](https://github.com/mansss7) | [`openboutik-seller`](https://github.com/OpenBoutik-Team/openboutik-seller) (Port 3001) — Backoffice Marchand, Gestion Stocks, Analytics |
+
+---
+
+## 🏗️ Architecture Globale de l'Écosystème
+
+```mermaid
+graph TD
+    Client[👤 Acheteur - Marketplace Next.js :3000] -->|REST & WebSockets| API[🦁 OpenBoutik API NestJS :3002]
+    Seller[🏪 Vendeur - Backoffice Next.js :3001] -->|REST & WebSockets| API
+    
+    subgraph Core Engine [Pôle Backend - @HYPNOTYZEDCHART]
+        API --> Escrow[🛡️ Séquestre Financier Wave/OM]
+        API --> Wakhale[🤝 Négociation Wakhale & Coupons]
+        API --> Live[📹 Live Shopping & Pop-up Flash]
+        API --> BNPL[💳 Achat Fractionné 3x/4x & KYC]
+    end
+    
+    subgraph Cloud Infrastructure
+        API --> DB[(🐬 MySQL 8 - Clever Cloud)]
+        API -.-> Host[☁️ Déploiement Cloud Render]
+        Client -.-> Vercel1[▲ Vercel Cloud]
+        Seller -.-> Vercel2[▲ Vercel Cloud]
+    end
 ```
 
-## Compile and run the project
+---
+
+## 🚀 Fonctionnalités Clés du Moteur Backend
+
+### 1. 🛡️ Séquestre Financier Garanti (Escrow Engine)
+* Verrouillage automatique des fonds lors du paiement client par Wave ou Orange Money.
+* Rapprochement webhook sécurisé avec validation HMAC et idempotence stricte.
+* Déblocage des gains sur le portefeuille marchand uniquement après confirmation de livraison ou expiration du délai de grâce.
+
+### 2. 🤝 Le « Wakhale » Numérique (Négociation de Prix)
+* Workflow bilatéral asynchrone Acheteur ↔ Vendeur.
+* Statuts gérés : `PROPOSED`, `ACCEPTED`, `REJECTED`, `COUNTERED`, `EXPIRED`.
+* Génération atomique d'un code promo privé à usage unique (remise exclusive) dès validation de l'accord.
+
+### 3. 📹 Live Shopping & Vidéos Courtes
+* Sessions de streaming interactif et flux de vidéos courtes (format Reels/TikTok).
+* Gateway WebSockets temps réel sur le namespace dédié `/streams`.
+* Épinglage flash de produits en direct avec pop-up d'achat instantané.
+
+### 4. 💳 Paiement Fractionné BNPL (Buy Now Pay Later)
+* Échéanciers 3x et 4x calculés à l'entier strict (zéro perte de centimes FCFA).
+* Garde-fou KYC Acheteur obligatoire (validation carte d'identité / passeport).
+* Cron automatisé quotidien (`@Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)`) pour le suivi des impayés et pénalités.
+
+---
+
+## 📦 Installation & Démarrage Rapide
 
 ```bash
-# development
-$ npm run start
+# 1. Cloner le projet
+git clone https://github.com/OpenBoutik-Team/openboutik-api.git
+cd openboutik-api
 
-# watch mode
-$ npm run start:dev
+# 2. Installer les dépendances
+npm install
 
-# production mode
-$ npm run start:prod
+# 3. Générer le client Prisma
+npm run prisma:generate
+
+# 4. Lancer en local
+npm run start:dev
 ```
 
-## Run tests
+---
+
+## 🧪 Tests & Assurance Qualité
 
 ```bash
-# unit tests
-$ npm run test
+# Tests unitaires
+npm run test
 
-# e2e tests
-$ npm run test:e2e
+# Tests d'intégration End-to-End
+npm run test:e2e
 
-# test coverage
-$ npm run test:cov
+# Tests de stress et de concurrence
+npm run test:stress
+
+# Tests de résilience Chaos Monkey
+npm run test:chaos
+
+# Audit de sécurité & Pentest OWASP
+npm run test:pentest
 ```
 
-## Deployment
+---
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## 📄 Licence
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Observability
-
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
-
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
-
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observer](https://observer.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Ce projet est la propriété exclusive de l'équipe **OpenBoutik**. Tous droits réservés.
