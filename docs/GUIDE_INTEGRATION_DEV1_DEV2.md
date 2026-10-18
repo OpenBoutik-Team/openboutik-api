@@ -638,4 +638,45 @@ L'octroi d'un échéancier 3x ou 4x exige un profil KYC vérifié :
     ```
   * Dès paiement de la dernière tranche, le plan passe automatiquement à `COMPLETED`.
 
+---
+
+### 4. ☁️ Stockage Cloud Sécurisé & Téléversement Direct (Photos, Vidéos & CNI)
+
+Pour ne pas surcharger la mémoire du serveur NestJS et garantir une sécurité maximale des documents d'identité :
+
+#### A. Demander un Ticket d'Upload Direct Signé (Dev 1 & Dev 2)
+* **Endpoint :** `POST /storage/upload-ticket` (Authentifié JWT)
+* **Body :**
+  ```json
+  {
+    "filename": "cni_recto.jpg",
+    "fileType": "image/jpeg",
+    "fileSize": 1548576,
+    "category": "KYC_DOCUMENT" // ou "STREAM_MEDIA", "PRODUCT_IMAGE", "SHOP_BANNER"
+  }
+  ```
+* **Réponse API :**
+  ```json
+  {
+    "ticketId": "840f6b4b-9e4b-4a52-9b24-9694294d1df0",
+    "provider": "SECURE_STORAGE", // ou "CLOUDINARY" dès abonnement
+    "uploadUrl": "https://openboutik-api.onrender.com/api/v1/storage/upload/...",
+    "publicUrl": "https://openboutik-api.onrender.com/storage/files/openboutik/kyc/...",
+    "signedParams": { "token": "hmac_sha256_hash", "timestamp": 1730000000 },
+    "expiresAt": "2026-10-18T23:59:59.000Z",
+    "isPrivate": true
+  }
+  ```
+
+#### B. Workflow Frontend 1-2-3 (Next.js) :
+1. Le client choisit son fichier dans le navigateur (`<input type="file" />`).
+2. Le frontend appelle `POST /storage/upload-ticket` pour obtenir `uploadUrl`.
+3. Le frontend envoie le fichier directement vers `uploadUrl` via un simple `fetch(uploadUrl, { method: 'POST', body: formData })`.
+4. Ensuite, le frontend enregistre l'URL finale `publicUrl` dans l'API (`/bnpl/kyc/submit` ou `/streams`).
+
+#### C. Visualisation Éphémère Sécurisée pour les CNI KYC (Super-Admin)
+* **Endpoint :** `GET /storage/secure-view?fileUrl=https://...` (Super-Admin uniquement)
+* Génère une URL signée temporaire avec jeton valable **15 minutes** pour examiner la CNI en toute confidentialité légale.
+
+
 

@@ -18,6 +18,8 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { PaymentsModule } from './payments/payments.module';
 import { WishlistModule } from './wishlist/wishlist.module';
 import { MessagesModule } from './messages/messages.module';
+import { CacheModule } from '@nestjs/cache-manager';
+import { StorageModule } from './storage/storage.module';
 import { NegotiationsModule } from './negotiations/negotiations.module';
 import { StreamsModule } from './streams/streams.module';
 import { BnplModule } from './bnpl/bnpl.module';
@@ -27,6 +29,10 @@ import { AppService } from './app.service';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
+    CacheModule.register({
+      isGlobal: true,
+      ttl: 30000, // Cache TTL de 30 secondes
+    }),
     ThrottlerModule.forRoot([
       {
         name: 'default',
@@ -53,6 +59,7 @@ import { AppService } from './app.service';
     NegotiationsModule,
     StreamsModule,
     BnplModule,
+    StorageModule,
   ],
   controllers: [AppController],
   providers: [
