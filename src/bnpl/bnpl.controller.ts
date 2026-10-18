@@ -17,7 +17,6 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { BnplService } from './bnpl.service';
-import { InitBnplDto } from './dto/init-bnpl.dto';
 import { SubmitKycDto } from './dto/submit-kyc.dto';
 import { ReviewKycDto } from './dto/review-kyc.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';

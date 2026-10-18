@@ -2,8 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import helmet from 'helmet';
-import * as path from 'path';
-import * as fs from 'fs';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
@@ -14,7 +12,6 @@ import {
   Role,
   SubscriptionPlan,
   OrderStatus,
-  EscrowStatus,
   KycStatus,
   CouponType,
   DeliveryMethod,
@@ -783,6 +780,16 @@ describe('OpenBoutik API — Certification E2E Phase 4 (Wakhale, Live Shopping, 
       expect(coupon.maxUses).toBe(1);
 
       generatedCouponCode = coupon.code;
+      expect(generatedCouponCode).toBeDefined();
+    });
+
+    it('1.6 Pentest BOLA : Acheteur B tente d’accéder à la négociation de l’Acheteur A -> 403 Forbidden', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/negotiations/${negotiationId}`)
+        .set('Authorization', `Bearer ${tokenClientB}`)
+        .expect(403);
+
+      expect(res.body.success).toBe(false);
     });
   });
 

@@ -14,7 +14,6 @@ import {
 import {
   NegotiationStatus,
   CouponType,
-  Prisma,
 } from '../generated/prisma/client';
 
 @Injectable()
