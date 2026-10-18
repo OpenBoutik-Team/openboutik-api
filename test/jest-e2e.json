@@ -1,0 +1,24 @@
+{
+  "preset": "ts-jest/presets/default-esm",
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "..",
+  "testEnvironment": "node",
+  "testRegex": "test/.*\\.e2e-spec\\.ts$",
+  "setupFiles": ["<rootDir>/test/jest-setup.mjs"],
+  "transform": {
+    "^.+\\.tsx?$": [
+      "ts-jest",
+      {
+        "useESM": true,
+        "tsconfig": {
+          "module": "ES2022"
+        }
+      }
+    ]
+  },
+  "moduleNameMapper": {
+    "^@nestjs/throttler$": "<rootDir>/test/vendor/nestjs-throttler.mjs",
+    "^(\\.{1,2}/.*)\\.js$": "$1",
+    "^src/(.*)$": "<rootDir>/src/$1"
+  }
+}
