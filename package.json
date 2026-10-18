@@ -1,8 +1,8 @@
 {
   "name": "openboutik-api",
-  "version": "0.0.1",
-  "description": "",
-  "author": "",
+  "version": "1.0.0",
+  "description": "API Backend & Logique Séquestre OpenBoutik (NestJS, Prisma, MySQL)",
+  "author": "OpenBoutik Team <HYPNOTYZEDCHART>",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
