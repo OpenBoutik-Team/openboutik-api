@@ -14,14 +14,19 @@ import { WalletsModule } from './wallets/wallets.module';
 import { CouponsModule } from './coupons/coupons.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PaymentsModule } from './payments/payments.module';
 import { WishlistModule } from './wishlist/wishlist.module';
 import { MessagesModule } from './messages/messages.module';
+import { NegotiationsModule } from './negotiations/negotiations.module';
+import { StreamsModule } from './streams/streams.module';
+import { BnplModule } from './bnpl/bnpl.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       {
         name: 'default',
@@ -45,6 +50,9 @@ import { AppService } from './app.service';
     PaymentsModule,
     WishlistModule,
     MessagesModule,
+    NegotiationsModule,
+    StreamsModule,
+    BnplModule,
   ],
   controllers: [AppController],
   providers: [

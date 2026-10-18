@@ -95,6 +95,41 @@ enum CouponType {
   FIXED_FCFA
 }
 
+enum NegotiationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COUNTER_OFFERED
+  EXPIRED
+}
+
+enum StreamType {
+  SHORT_VIDEO
+  LIVE_STREAM
+}
+
+enum StreamStatus {
+  SCHEDULED
+  LIVE
+  ENDED
+  PUBLISHED
+}
+
+enum InstallmentPlanStatus {
+  ACTIVE
+  COMPLETED
+  OVERDUE
+  DEFAULTED
+  CANCELLED
+}
+
+enum InstallmentPaymentStatus {
+  PENDING
+  PAID
+  OVERDUE
+  FAILED
+}
+
 // ------------------------------------------------------------------------------
 // UTILISATEURS & AUTHENTIFICATION
 // ------------------------------------------------------------------------------
@@ -110,20 +145,30 @@ model User {
   refreshTokenHash String?
   acceptedTermsAt  DateTime? // Horodatage acceptation CGU & Séquestre
 
+  // KYC Acheteur progressif (Requis pour l'accès au BNPL 3x/4x)
+  kycStatus           KycStatus          @default(NONE)
+  idCardNumber        String?
+  idCardUrl           String?
+  kycSubmittedAt      DateTime?
+  kycVerifiedAt       DateTime?
+  kycRejectionReason  String?
+
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
   // Relations
   shop                 Shop?
   checkoutSessions     CheckoutSession[]
-  clientOrders         Order[]           @relation("ClientOrders")
-  disputes             Dispute[]         @relation("ClientDisputes")
-  arbitratedDisputes   Dispute[]         @relation("SuperAdminArbitrations")
+  clientOrders         Order[]            @relation("ClientOrders")
+  disputes             Dispute[]          @relation("ClientDisputes")
+  arbitratedDisputes   Dispute[]          @relation("SuperAdminArbitrations")
   auditLogs            AuditLog[]
   reviews              Review[]
   wishlistItems        Wishlist[]
-  sentMessages         Message[]         @relation("SentMessages")
-  receivedMessages     Message[]         @relation("ReceivedMessages")
+  sentMessages         Message[]          @relation("SentMessages")
+  receivedMessages     Message[]          @relation("ReceivedMessages")
+  buyerNegotiations    PriceNegotiation[] @relation("BuyerNegotiations")
+  installmentPlans     InstallmentPlan[]  @relation("UserInstallmentPlans")
 
   @@map("users")
 }
@@ -179,12 +224,15 @@ model Shop {
   updatedAt        DateTime         @updatedAt
 
   // Relations
-  wallet           VendorWallet?
-  subscriptions    Subscription[]
-  categories       Category[]
-  products         Product[]
-  orders           Order[]
-  coupons          Coupon[]
+  wallet              VendorWallet?
+  subscriptions       Subscription[]
+  categories          Category[]
+  products            Product[]
+  orders              Order[]
+  coupons             Coupon[]
+  priceNegotiations   PriceNegotiation[]
+  mediaStreams        MediaStream[]
+  installmentPlans    InstallmentPlan[]
 
   @@map("shops")
 }
@@ -255,12 +303,14 @@ model Product {
   updatedAt          DateTime    @updatedAt
 
   // Relations
-  orderItems         OrderItem[]
-  variants           ProductVariant[]
-  reviews            Review[]
-  views              ProductView[]
-  wishlistItems      Wishlist[]
-  messages           Message[]
+  orderItems          OrderItem[]
+  variants            ProductVariant[]
+  reviews             Review[]
+  views               ProductView[]
+  wishlistItems       Wishlist[]
+  messages            Message[]
+  priceNegotiations   PriceNegotiation[]
+  streamProducts      StreamProduct[]
 
   @@unique([shopId, slug])
   @@index([isPublished, priceFcfa])
@@ -346,6 +396,7 @@ model Order {
   trackingHistory          OrderTracking[]
   paymentTransactions      PaymentTransaction[]
   messages                 Message[]
+  installmentPlan          InstallmentPlan?
 
   @@index([status])
   @@index([createdAt])
@@ -544,7 +595,8 @@ model Coupon {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  orders      Order[]
+  orders              Order[]
+  priceNegotiation    PriceNegotiation?
 
   @@unique([shopId, code])
   @@index([shopId, isActive])
@@ -673,5 +725,133 @@ model OrderTracking {
 
   @@index([orderId, timestamp])
   @@map("order_trackings")
+}
+
+// ------------------------------------------------------------------------------
+// EXTENSIONS ROADMAP PHASE 4 (DISRUPTION & SCALING)
+// ------------------------------------------------------------------------------
+
+// Module 1 : Le « Wakhale » numérique — Négociation de prix
+model PriceNegotiation {
+  id                 String            @id @default(uuid())
+  productId          String
+  product            Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  buyerId            String
+  buyer              User              @relation("BuyerNegotiations", fields: [buyerId], references: [id], onDelete: Cascade)
+  
+  shopId             String
+  shop               Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  originalPriceFcfa  Int               // Snapshot du prix initial du produit en FCFA
+  proposedPriceFcfa  Int               // Prix proposé par l'acheteur
+  counterPriceFcfa   Int?              // Contre-offre éventuelle du vendeur
+  status             NegotiationStatus @default(PENDING)
+  
+  generatedCouponId  String?           @unique
+  generatedCoupon    Coupon?           @relation(fields: [generatedCouponId], references: [id], onDelete: SetNull)
+  
+  expiresAt          DateTime          // Expiration automatique de la proposition
+  
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@index([productId, buyerId, status])
+  @@index([shopId, status])
+  @@map("price_negotiations")
+}
+
+// Module 2 : Live Shopping & Vidéos Courtes
+model MediaStream {
+  id           String          @id @default(uuid())
+  shopId       String
+  shop         Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  title        String
+  description  String?         @db.Text
+  type         StreamType      // SHORT_VIDEO ou LIVE_STREAM
+  status       StreamStatus    @default(SCHEDULED)
+  mediaUrl     String          // Flux vidéo direct HLS / MP4 / WebRTC
+  thumbnailUrl String?
+  viewsCount   Int             @default(0)
+  peakViewers  Int             @default(0)
+  startedAt    DateTime?
+  endedAt      DateTime?
+  
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  streamProducts StreamProduct[]
+
+  @@index([shopId, status])
+  @@index([type, status])
+  @@map("media_streams")
+}
+
+model StreamProduct {
+  id               String      @id @default(uuid())
+  streamId         String
+  stream           MediaStream @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  
+  productId        String
+  product          Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  isPinned         Boolean     @default(false) // Produit actuellement affiché en pop-up à l'écran
+  specialPriceFcfa Int?        // Prix flash éventuel pendant le Live
+  
+  createdAt        DateTime    @default(now())
+
+  @@unique([streamId, productId])
+  @@index([streamId])
+  @@index([productId])
+  @@map("stream_products")
+}
+
+// Module 3 : Paiement Fractionné / BNPL en 3 ou 4 fois
+model InstallmentPlan {
+  id                  String                @id @default(uuid())
+  orderId             String                @unique
+  order               Order                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  userId              String
+  user                User                  @relation("UserInstallmentPlans", fields: [userId], references: [id], onDelete: Cascade)
+  
+  shopId              String
+  shop                Shop                  @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  totalAmountFcfa     Int                   // Montant total commande
+  installmentsCount   Int                   // 3 ou 4 uniquement
+  paidAmountFcfa      Int                   @default(0)
+  remainingAmountFcfa Int                   // Reste exact à payer
+  status              InstallmentPlanStatus @default(ACTIVE)
+  
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  payments            InstallmentPayment[]
+
+  @@index([userId, status])
+  @@index([shopId, status])
+  @@map("installment_plans")
+}
+
+model InstallmentPayment {
+  id                   String                   @id @default(uuid())
+  planId               String
+  plan                 InstallmentPlan          @relation(fields: [planId], references: [id], onDelete: Cascade)
+  
+  installmentNumber    Int                      // 1, 2, 3 ou 4
+  amountFcfa           Int                      // Montant strict en FCFA (reliquat de division sur l'échéance 1)
+  dueDate              DateTime                 // Échéance 1 = immédiat, Échéance 2 = +30j, etc.
+  paidAt               DateTime?
+  status               InstallmentPaymentStatus @default(PENDING)
+  paymentTransactionId String?                  // Référence paiement Wave / OM / Free Money
+  
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+
+  @@index([planId, status])
+  @@index([dueDate, status])
+  @@map("installment_payments")
 }
 
