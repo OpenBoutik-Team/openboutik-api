@@ -9,6 +9,11 @@ import {
   PaymentProvider,
   DeliveryMethod,
   CouponType,
+  NegotiationStatus,
+  StreamType,
+  StreamStatus,
+  InstallmentPlanStatus,
+  InstallmentPaymentStatus,
 } from '../src/generated/prisma/client';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 
@@ -21,6 +26,15 @@ async function main() {
   console.log('🌱 Démarrage du Seed réaliste OpenBoutik Sénégal (Roadmap V2 Espace Vendeur)...');
 
   // Nettoyage préalable ordonné respectant l'intégrité référentielle
+  await prisma.installmentPayment.deleteMany();
+  await prisma.installmentPlan.deleteMany();
+  await prisma.streamProduct.deleteMany();
+  await prisma.mediaStream.deleteMany();
+  await prisma.priceNegotiation.deleteMany();
+  await prisma.paymentTransaction.deleteMany();
+  await prisma.orderTracking.deleteMany();
+  await prisma.message.deleteMany();
+  await prisma.wishlist.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.dispute.deleteMany();
   await prisma.escrowTransaction.deleteMany();
@@ -323,6 +337,11 @@ async function main() {
       passwordHash: defaultPasswordHash,
       role: Role.CLIENT,
       acceptedTermsAt: new Date(),
+      kycStatus: 'VERIFIED',
+      idCardNumber: '1 759 1995 04567',
+      idCardUrl: 'https://storage.openboutik.sn/kyc/cni-fatou-ndiaye.jpg',
+      kycSubmittedAt: new Date(),
+      kycVerifiedAt: new Date(),
     },
   });
   console.log(`✅ Client 1 créé : ${client1.email} (${client1.phone})`);
@@ -489,9 +508,153 @@ async function main() {
     },
   });
 
+  // 7. Extensions Espace Acheteur : Wishlist, Messages, Tracking, Transaction Mobile Money
+  await prisma.wishlist.create({
+    data: {
+      userId: client1.id,
+      productId: prod1.id,
+    },
+  });
+
+  await prisma.message.create({
+    data: {
+      senderId: client1.id,
+      receiverId: vendor1.id,
+      shopId: shop1.id,
+      productId: prod1.id,
+      content:
+        'Bonjour Moussa, avez-vous la taille XL en stock pour le grand boubou Bazin Getzner ?',
+      isRead: true,
+      readAt: new Date(),
+    },
+  });
+
+  await prisma.message.create({
+    data: {
+      senderId: vendor1.id,
+      receiverId: client1.id,
+      shopId: shop1.id,
+      productId: prod1.id,
+      content:
+        'Bonjour Fatou ! Oui absolument, il nous reste 6 pièces en taille XL prêtes à être expédiées.',
+      isRead: false,
+    },
+  });
+
+  await prisma.orderTracking.create({
+    data: {
+      orderId: testOrder.id,
+      statusStep: OrderStatus.PAID_ESCROW,
+      title: 'Paiement sécurisé sur le séquestre Wave',
+      comment: 'Fonds de 37 000 FCFA bloqués avec succès.',
+    },
+  });
+
+  await prisma.orderTracking.create({
+    data: {
+      orderId: testOrder.id,
+      statusStep: OrderStatus.PREPARING,
+      title: 'Colis en cours de préparation',
+      comment:
+        'Boutique Teranga Mode prépare le colis pour le livreur Tiak-Tiak.',
+    },
+  });
+
+  await prisma.paymentTransaction.create({
+    data: {
+      orderId: testOrder.id,
+      amountFcfa: 37000,
+      provider: PaymentProvider.WAVE,
+      phone: '+221765432109',
+      externalTxId: 'WAVE_TX_TEST_001',
+      status: 'SUCCESS',
+    },
+  });
+
+  // 8. Extensions Phase 4 : Wakhale, Live Shopping & Achat Fractionné BNPL
+  // Négociation Wakhale en cours
+  await prisma.priceNegotiation.create({
+    data: {
+      productId: prod1.id,
+      buyerId: client1.id,
+      shopId: shop1.id,
+      originalPriceFcfa: 35000,
+      proposedPriceFcfa: 30000,
+      counterPriceFcfa: 32000,
+      status: NegotiationStatus.COUNTER_OFFERED,
+      expiresAt: new Date(Date.now() + 24 * 3600 * 1000),
+    },
+  });
+
+  // Live Stream actif avec produit épinglé
+  await prisma.mediaStream.create({
+    data: {
+      shopId: shop1.id,
+      title: 'Vente Flash Spéciale Bazin & Prêt-à-porter',
+      description: 'Défilé en direct de nos nouvelles coupes Tabaski 2026',
+      type: StreamType.LIVE_STREAM,
+      status: StreamStatus.LIVE,
+      mediaUrl: 'https://cdn.openboutik.sn/streams/teranga-live.m3u8',
+      thumbnailUrl:
+        'https://images.unsplash.com/photo-1544441893-675973e31985?w=600',
+      viewsCount: 142,
+      peakViewers: 38,
+      startedAt: new Date(),
+      streamProducts: {
+        create: [
+          {
+            productId: prod1.id,
+            isPinned: true,
+            specialPriceFcfa: 30000,
+          },
+        ],
+      },
+    },
+  });
+
+  // Plan BNPL en 3 fois sur la commande test
+  await prisma.installmentPlan.create({
+    data: {
+      orderId: testOrder.id,
+      userId: client1.id,
+      shopId: shop1.id,
+      totalAmountFcfa: 37000,
+      installmentsCount: 3,
+      paidAmountFcfa: 12334,
+      remainingAmountFcfa: 24666,
+      status: InstallmentPlanStatus.ACTIVE,
+      payments: {
+        create: [
+          {
+            installmentNumber: 1,
+            amountFcfa: 12334, // 12333 + 1
+            dueDate: new Date(),
+            paidAt: new Date(),
+            status: InstallmentPaymentStatus.PAID,
+            paymentTransactionId: 'WAVE_TX_TEST_001',
+          },
+          {
+            installmentNumber: 2,
+            amountFcfa: 12333,
+            dueDate: new Date(Date.now() + 30 * 24 * 3600 * 1000),
+            status: InstallmentPaymentStatus.PENDING,
+          },
+          {
+            installmentNumber: 3,
+            amountFcfa: 12333,
+            dueDate: new Date(Date.now() + 60 * 24 * 3600 * 1000),
+            status: InstallmentPaymentStatus.PENDING,
+          },
+        ],
+      },
+    },
+  });
+
   console.log(`✅ Commande séquestre : ${testOrder.orderNumber} (OTP: 482910)`);
   console.log(`✅ Commande confirmée livrée : ${deliveredOrder.orderNumber}`);
-  console.log('🚀 Seed V2 complet (Variantes, Coupons TABASKI20, Mémos, Avis 5★, Tracking Vues) !');
+  console.log(
+    '🚀 Seed complet : Socle V1 + Roadmap V2 Vendeur + Roadmap Acheteur + Phase 4 (Wakhale, Live, BNPL) !',
+  );
 }
 
 main()
