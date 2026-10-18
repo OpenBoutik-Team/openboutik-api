@@ -54,7 +54,16 @@ enum EscrowStatus {
 enum PaymentProvider {
   WAVE
   ORANGE_MONEY
+  FREE_MONEY
 }
+
+enum PaymentTxStatus {
+  INITIATED
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
 
 enum DeliveryMethod {
   TIAK_TIAK
@@ -112,6 +121,9 @@ model User {
   arbitratedDisputes   Dispute[]         @relation("SuperAdminArbitrations")
   auditLogs            AuditLog[]
   reviews              Review[]
+  wishlistItems        Wishlist[]
+  sentMessages         Message[]         @relation("SentMessages")
+  receivedMessages     Message[]         @relation("ReceivedMessages")
 
   @@map("users")
 }
@@ -136,7 +148,9 @@ model Shop {
   whatsappNumber   String?          // Numéro WhatsApp pour contact direct (+221...)
   waveNumber       String?          // Numéro Wave pour réceptions & retraits
   omNumber         String?          // Numéro Orange Money pour retraits
+  freeMoneyNumber  String?          // Numéro Free Money (Mixx by Yas) pour retraits
   payoutHolderName String?          // Nom complet du titulaire Wave/Orange Money
+
   
   // Machine à états Onboarding (Étapes 1 à 5)
   onboardingStep      Int          @default(1)
@@ -245,9 +259,14 @@ model Product {
   variants           ProductVariant[]
   reviews            Review[]
   views              ProductView[]
+  wishlistItems      Wishlist[]
+  messages           Message[]
 
   @@unique([shopId, slug])
   @@index([isPublished, priceFcfa])
+  @@index([categoryId])
+  @@index([name])
+  @@index([shopId, isPublished, priceFcfa])
   @@map("products")
 }
 
@@ -324,6 +343,9 @@ model Order {
   escrow                   EscrowTransaction?
   dispute                  Dispute?
   notes                    OrderNote[]
+  trackingHistory          OrderTracking[]
+  paymentTransactions      PaymentTransaction[]
+  messages                 Message[]
 
   @@index([status])
   @@index([createdAt])
@@ -567,3 +589,89 @@ model ProductView {
   @@index([productId, date])
   @@map("product_views")
 }
+
+// ------------------------------------------------------------------------------
+// EXTENSIONS ROADMAP ACHETEUR (OCTOBRE 2026)
+// ------------------------------------------------------------------------------
+
+// Transactions Paiements Mobile Money (Wave, OM, Free Money)
+model PaymentTransaction {
+  id                String          @id @default(uuid())
+  orderId           String
+  order             Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  amountFcfa        Int             // Montant exact en FCFA
+  provider          PaymentProvider // WAVE, ORANGE_MONEY, FREE_MONEY
+  phone             String          // Format +221...
+  externalTxId      String?         @unique // Idempotence stricte opérateur
+  status            PaymentTxStatus @default(INITIATED)
+  rawWebhookPayload Json?           // Snapshot payload opérateur pour audit
+  
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([orderId])
+  @@index([status])
+  @@map("payment_transactions")
+}
+
+// Favoris Acheteur (Wishlist)
+model Wishlist {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@map("wishlists")
+}
+
+// Messagerie Interne Conversationnelle Acheteur-Vendeur
+model Message {
+  id         String    @id @default(uuid())
+  senderId   String
+  sender     User      @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  
+  receiverId String
+  receiver   User      @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  
+  shopId     String?
+  productId  String?
+  product    Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  
+  orderId    String?
+  order      Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  
+  content    String    @db.Text
+  isRead     Boolean   @default(false)
+  readAt     DateTime?
+  
+  createdAt  DateTime  @default(now())
+
+  @@index([senderId, receiverId])
+  @@index([receiverId, isRead])
+  @@index([shopId])
+  @@index([orderId])
+  @@map("messages")
+}
+
+// Historique Événementiel du Suivi de Commande (Stepper Timeline)
+model OrderTracking {
+  id         String      @id @default(uuid())
+  orderId    String
+  order      Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  statusStep OrderStatus // PENDING_PAYMENT, PAID_ESCROW, PREPARING, SHIPPED_TIAK_TIAK, DELIVERED_CONFIRMED...
+  title      String      // Titre explicite pour le client (ex: "Paiement sécurisé sur le séquestre")
+  comment    String?     @db.Text
+  timestamp  DateTime    @default(now())
+
+  @@index([orderId, timestamp])
+  @@map("order_trackings")
+}
+

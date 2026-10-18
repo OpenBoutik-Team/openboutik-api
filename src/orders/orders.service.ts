@@ -398,6 +398,19 @@ export class OrdersService {
           },
         });
 
+        // Historique de suivi initial
+        if (tx.orderTracking) {
+          await tx.orderTracking.create({
+            data: {
+              orderId: order.id,
+              statusStep: OrderStatus.PAID_ESCROW,
+              title: 'Paiement sécurisé sur le séquestre OpenBoutik',
+              comment: `Fonds sécurisés sur le compte séquestre via ${dto.paymentProvider}. En attente de préparation par le marchand.`,
+            },
+          });
+        }
+
+
         // Audit log
         await tx.auditLog.create({
           data: {
@@ -494,11 +507,15 @@ export class OrdersService {
         shop: true,
         coupon: true,
         notes: role !== Role.CLIENT,
+        trackingHistory: {
+          orderBy: { timestamp: 'asc' },
+        },
         client: {
           select: { id: true, fullName: true, phone: true, email: true },
         },
       },
     });
+
 
     if (!order) {
       throw new NotFoundException('Commande introuvable');
@@ -525,10 +542,23 @@ export class OrdersService {
       throw new BadRequestException('Seule une commande payée et séquestrée peut passer en préparation');
     }
 
-    return this.prisma.order.update({
+    const updated = await this.prisma.order.update({
       where: { id: order.id },
       data: { status: OrderStatus.PREPARING },
     });
+
+    if (this.prisma.orderTracking) {
+      await this.prisma.orderTracking.create({
+        data: {
+          orderId: order.id,
+          statusStep: OrderStatus.PREPARING,
+          title: 'Commande en cours de préparation chez le vendeur',
+          comment: 'Le vendeur a pris en charge la commande et emballe vos articles.',
+        },
+      });
+    }
+
+    return updated;
   }
 
   /**
@@ -550,7 +580,7 @@ export class OrdersService {
       shippedAt.getTime() + autoReleaseHours * 60 * 60 * 1000,
     );
 
-    return this.prisma.order.update({
+    const updated = await this.prisma.order.update({
       where: { id: order.id },
       data: {
         status: OrderStatus.SHIPPED_TIAK_TIAK,
@@ -558,7 +588,22 @@ export class OrdersService {
         autoReleaseAt,
       },
     });
+
+    if (this.prisma.orderTracking) {
+      await this.prisma.orderTracking.create({
+        data: {
+          orderId: order.id,
+          statusStep: OrderStatus.SHIPPED_TIAK_TIAK,
+          title: 'Colis remis au livreur Tiak-Tiak',
+          comment: 'Votre colis est en route. Veuillez transmettre votre code OTP au livreur à la réception.',
+        },
+      });
+    }
+
+    return updated;
   }
+
+
 
   /**
    * Confirmation de réception et déblocage du séquestre en transaction ACID
@@ -670,7 +715,20 @@ export class OrdersService {
         },
       });
 
-      // 4. Audit Log immuable
+      // 4. Étape de confirmation dans l'historique OrderTracking
+      if (tx.orderTracking) {
+        await tx.orderTracking.create({
+          data: {
+            orderId: order.id,
+            statusStep: OrderStatus.DELIVERED_CONFIRMED,
+            title: 'Livraison confirmée avec succès',
+            comment: 'Colis remis, code OTP validé et fonds libérés au marchand.',
+          },
+        });
+      }
+
+
+      // 5. Audit Log immuable
       await tx.auditLog.create({
         data: {
           userId,
@@ -688,7 +746,7 @@ export class OrdersService {
 
       const confirmedOrder = await tx.order.findUnique({
         where: { id: order.id },
-        include: { escrow: true },
+        include: { escrow: true, trackingHistory: true },
       });
 
       return confirmedOrder;
@@ -696,6 +754,42 @@ export class OrdersService {
 
     return updatedOrder;
   }
+
+  /**
+   * Consultation de la chronologie complète de livraison (Stepper / Timeline)
+   */
+  async getOrderTracking(orderId: string, userId: string, role: Role) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        shop: true,
+        trackingHistory: {
+          orderBy: { timestamp: 'asc' },
+        },
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Commande introuvable');
+    }
+
+    const isClient = order.clientId === userId;
+    const isVendor = order.shop.ownerId === userId;
+    const isAdmin = role === Role.SUPER_ADMIN;
+
+    if (!isClient && !isVendor && !isAdmin) {
+      throw new ForbiddenException('Accès refusé au suivi de cette commande');
+    }
+
+    return {
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      status: order.status,
+      deliveryMethod: order.deliveryMethod,
+      tracking: order.trackingHistory,
+    };
+  }
+
 
   /**
    * Ajout d'un mémo interne confidentiel vendeur sur une commande

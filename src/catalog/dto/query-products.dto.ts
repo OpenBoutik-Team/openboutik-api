@@ -13,6 +13,7 @@ export enum ProductSortBy {
   NEWEST = 'newest',
   PRICE_ASC = 'price_asc',
   PRICE_DESC = 'price_desc',
+  RATING_DESC = 'rating_desc',
 }
 
 export class QueryProductsDto {
@@ -39,6 +40,14 @@ export class QueryProductsDto {
   @IsOptional()
   @IsString()
   categorySlug?: string;
+
+  @ApiPropertyOptional({
+    example: 'c1d2e3f4-5678-90ab-cdef-1234567890ab',
+    description: 'Filtrer par identifiant direct de catégorie (UUID)',
+  })
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
 
   @ApiPropertyOptional({
     example: 10000,
@@ -70,6 +79,15 @@ export class QueryProductsDto {
   inStockOnly?: boolean;
 
   @ApiPropertyOptional({
+    example: true,
+    description: 'Afficher uniquement les articles en promotion (ayant un prix barré compareAtPriceFcfa)',
+  })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  onSaleOnly?: boolean;
+
+  @ApiPropertyOptional({
     enum: ProductSortBy,
     default: ProductSortBy.NEWEST,
     description: 'Critère de tri des produits',
@@ -77,6 +95,7 @@ export class QueryProductsDto {
   @IsOptional()
   @IsEnum(ProductSortBy)
   sortBy?: ProductSortBy;
+
 
   @ApiPropertyOptional({
     example: 1,

@@ -109,7 +109,20 @@ export class DisputesService {
         },
       });
 
-      // 4. Audit Log immuable
+      // 4. Étape de litige dans l'historique OrderTracking
+      if (tx.orderTracking) {
+        await tx.orderTracking.create({
+          data: {
+            orderId: order.id,
+            statusStep: OrderStatus.DISPUTED,
+            title: 'Litige ouvert par le client - Séquestre gelé',
+            comment: `Motif : ${dto.reason}`,
+          },
+        });
+      }
+
+
+      // 5. Audit Log immuable
       await tx.auditLog.create({
         data: {
           userId: clientId,

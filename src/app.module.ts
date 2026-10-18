@@ -14,6 +14,9 @@ import { WalletsModule } from './wallets/wallets.module';
 import { CouponsModule } from './coupons/coupons.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { PaymentsModule } from './payments/payments.module';
+import { WishlistModule } from './wishlist/wishlist.module';
+import { MessagesModule } from './messages/messages.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -39,6 +42,9 @@ import { AppService } from './app.service';
     CouponsModule,
     ReviewsModule,
     AnalyticsModule,
+    PaymentsModule,
+    WishlistModule,
+    MessagesModule,
   ],
   controllers: [AppController],
   providers: [

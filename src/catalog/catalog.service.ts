@@ -113,8 +113,16 @@ export class CatalogService {
       };
     }
 
+    if (query.categoryId) {
+      where.categoryId = query.categoryId;
+    }
+
     if (query.inStockOnly) {
       where.stock = { gt: 0 };
+    }
+
+    if (query.onSaleOnly) {
+      where.compareAtPriceFcfa = { gt: 0 };
     }
 
     if (query.minPrice !== undefined || query.maxPrice !== undefined) {
@@ -137,7 +145,10 @@ export class CatalogService {
       orderBy = { priceFcfa: 'asc' };
     } else if (query.sortBy === ProductSortBy.PRICE_DESC) {
       orderBy = { priceFcfa: 'desc' };
+    } else if (query.sortBy === ProductSortBy.RATING_DESC) {
+      orderBy = { reviews: { _count: 'desc' } };
     }
+
 
     const [total, products] = await Promise.all([
       this.prisma.product.count({ where }),

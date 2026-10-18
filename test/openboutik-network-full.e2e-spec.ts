@@ -590,6 +590,27 @@ describe('OpenBoutik API — Suite Intégrale Réseau & Pentest E2E (7 Couches C
           return data;
         }),
       },
+      orderTracking: {
+        create: jest.fn(async ({ data }) => ({ id: `track-${Date.now()}`, timestamp: new Date(), ...data })),
+        findMany: jest.fn(async () => []),
+      },
+      paymentTransaction: {
+        create: jest.fn(async ({ data }) => ({ id: `ptx-${Date.now()}`, ...data })),
+        findUnique: jest.fn(async () => null),
+        findMany: jest.fn(async () => []),
+      },
+      wishlist: {
+        create: jest.fn(async ({ data }) => ({ id: `wish-${Date.now()}`, ...data })),
+        findUnique: jest.fn(async () => null),
+        findMany: jest.fn(async () => []),
+        delete: jest.fn(async () => ({})),
+      },
+      message: {
+        create: jest.fn(async ({ data }) => ({ id: `msg-${Date.now()}`, ...data })),
+        findMany: jest.fn(async () => []),
+        updateMany: jest.fn(async () => ({ count: 1 })),
+      },
+
       $transaction: jest.fn(async (callbackOrArray) => {
         if (typeof callbackOrArray === 'function') {
           return callbackOrArray(mockPrismaService);

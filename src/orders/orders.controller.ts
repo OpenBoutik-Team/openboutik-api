@@ -8,13 +8,17 @@ import {
   Query,
   Res,
   UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
+
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
   ApiQuery,
+  ApiParam,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { OrdersService } from './orders.service';
@@ -113,6 +117,32 @@ export class OrdersController {
     return this.ordersService.getOrderById(orderId, userId, role);
   }
 
+  @Get(':id/tracking')
+  @ApiOperation({
+    summary: 'Suivi de livraison chronologique (Timeline / Stepper)',
+    description:
+      'Retourne la liste chronologique complète de toutes les étapes de livraison de la commande.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Identifiant UUID de la commande',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Historique de suivi retourné avec succès',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Accès refusé au suivi de cette commande',
+  })
+  async getOrderTracking(
+    @Param('id') orderId: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.ordersService.getOrderTracking(orderId, userId, role);
+  }
+
   @Patch(':id/prepare')
   @Roles(Role.VENDOR)
   @ApiOperation({
@@ -140,6 +170,7 @@ export class OrdersController {
   }
 
   @Post(':id/confirm-delivery')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Confirmer la réception et débloquer les fonds du séquestre (Client ou Vendeur/Livreur)',
     description: 'Débloque les fonds séquestrés vers le solde disponible du vendeur en transaction ACID. Le client peut cliquer directement ; le vendeur ou livreur doit fournir le code OTP à 6 chiffres.',
