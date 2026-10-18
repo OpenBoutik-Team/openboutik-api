@@ -87,8 +87,10 @@ export class PaymentsService {
       process.env.PAYMENT_WEBHOOK_SECRET ||
       'whsec_openboutik_dev_secret';
 
-    if (secretHeader && secretHeader !== expectedSecret) {
-      throw new UnauthorizedException('Signature webhook opérateur invalide');
+    if (!secretHeader || secretHeader !== expectedSecret) {
+      throw new UnauthorizedException(
+        'Signature webhook opérateur invalide ou manquante',
+      );
     }
 
     // Vérification d'idempotence stricte sur externalTxId
@@ -147,82 +149,121 @@ export class PaymentsService {
     // Transaction atomique ACID pour le succès du paiement :
     // 1. Enregistrement/mise à jour de la PaymentTransaction en SUCCESS
     // 2. Passage de la commande en PAID_ESCROW
+    // Transaction atomique ACID pour le succès du paiement :
+    // 1. Enregistrement/mise à jour de la PaymentTransaction en SUCCESS
+    // 2. Passage de la commande en PAID_ESCROW
     // 3. Création ou mise à jour du séquestre en HELD_IN_ESCROW
     // 4. Crédit du escrowBalanceFcfa du vendeur
     // 5. Ajout de l'événement daté dans OrderTracking
-    const result = await this.prisma.$transaction(async (tx) => {
-      // 1. PaymentTransaction
-      const paymentTx = await tx.paymentTransaction.create({
-        data: {
-          orderId: order.id,
-          amountFcfa: payload.amountFcfa,
-          provider,
-          phone: order.deliveryPhone,
-          externalTxId: payload.externalTxId,
-          status: PaymentTxStatus.SUCCESS,
-          rawWebhookPayload: payload as unknown as Prisma.InputJsonValue,
-        },
-      });
+    let result: {
+      paymentTx: any;
+      updatedOrder: any;
+    };
 
-      // 2. Mise à jour de la commande
-      const updatedOrder = await tx.order.update({
-        where: { id: order.id },
-        data: {
-          status: OrderStatus.PAID_ESCROW,
-        },
-      });
-
-      // 3. Mise à jour ou création du séquestre
-      if (order.escrow) {
-        await tx.escrowTransaction.update({
-          where: { id: order.escrow.id },
-          data: {
-            status: EscrowStatus.HELD_IN_ESCROW,
-            paymentProvider: provider,
-            providerReference: payload.externalTxId,
-          },
+    try {
+      result = await this.prisma.$transaction(async (tx) => {
+        // Vérification intra-transactionnelle de l'état actuel de la commande
+        const currentOrder = await tx.order.findUnique({
+          where: { id: order.id },
         });
-      } else {
-        await tx.escrowTransaction.create({
+        const isAlreadyPaid = currentOrder?.status === OrderStatus.PAID_ESCROW;
+
+        // 1. PaymentTransaction
+        const paymentTx = await tx.paymentTransaction.create({
           data: {
             orderId: order.id,
-            totalAmountFcfa: order.totalAmountFcfa,
-            commissionAmountFcfa: order.commissionAmountFcfa,
-            netVendorAmountFcfa: order.netVendorAmountFcfa,
-            paymentProvider: provider,
-            providerReference: payload.externalTxId,
-            status: EscrowStatus.HELD_IN_ESCROW,
+            amountFcfa: payload.amountFcfa,
+            provider,
+            phone: order.deliveryPhone,
+            externalTxId: payload.externalTxId,
+            status: PaymentTxStatus.SUCCESS,
+            rawWebhookPayload: payload as unknown as Prisma.InputJsonValue,
           },
         });
-      }
 
-      // 4. Crédit du portefeuille vendeur (solde séquestre)
-      if (order.shop.wallet) {
-        await tx.vendorWallet.update({
-          where: { id: order.shop.wallet.id },
+        // 2. Mise à jour de la commande
+        const updatedOrder = await tx.order.update({
+          where: { id: order.id },
           data: {
-            escrowBalanceFcfa: {
-              increment: order.netVendorAmountFcfa,
-            },
+            status: OrderStatus.PAID_ESCROW,
           },
         });
-      }
 
-      // 5. Historique OrderTracking automatique
-      await tx.orderTracking.create({
-        data: {
-          orderId: order.id,
-          statusStep: OrderStatus.PAID_ESCROW,
-          title: 'Paiement sécurisé sur le séquestre OpenBoutik',
-          comment: `Paiement de ${order.totalAmountFcfa} FCFA validé via ${provider} (Réf : ${payload.externalTxId}). Fonds sous séquestre jusqu'à livraison.`,
-        },
+        // Ne créditer le séquestre et n'enregistrer le tracking que lors du premier passage en PAID_ESCROW
+        if (!isAlreadyPaid) {
+          // 3. Mise à jour ou création du séquestre
+          if (order.escrow) {
+            await tx.escrowTransaction.update({
+              where: { id: order.escrow.id },
+              data: {
+                status: EscrowStatus.HELD_IN_ESCROW,
+                paymentProvider: provider,
+                providerReference: payload.externalTxId,
+              },
+            });
+          } else {
+            await tx.escrowTransaction.create({
+              data: {
+                orderId: order.id,
+                totalAmountFcfa: order.totalAmountFcfa,
+                commissionAmountFcfa: order.commissionAmountFcfa,
+                netVendorAmountFcfa: order.netVendorAmountFcfa,
+                paymentProvider: provider,
+                providerReference: payload.externalTxId,
+                status: EscrowStatus.HELD_IN_ESCROW,
+              },
+            });
+          }
+
+          // 4. Crédit du portefeuille vendeur (solde séquestre)
+          if (order.shop.wallet) {
+            await tx.vendorWallet.update({
+              where: { id: order.shop.wallet.id },
+              data: {
+                escrowBalanceFcfa: {
+                  increment: order.netVendorAmountFcfa,
+                },
+              },
+            });
+          }
+
+          // 5. Historique OrderTracking automatique
+          await tx.orderTracking.create({
+            data: {
+              orderId: order.id,
+              statusStep: OrderStatus.PAID_ESCROW,
+              title: 'Paiement sécurisé sur le séquestre OpenBoutik',
+              comment: `Paiement de ${order.totalAmountFcfa} FCFA validé via ${provider} (Réf : ${payload.externalTxId}). Fonds sous séquestre jusqu'à livraison.`,
+            },
+          });
+        }
+
+        return {
+          paymentTx,
+          updatedOrder,
+        };
       });
-
-      return {
-        paymentTx,
-        updatedOrder,
-      };
-    });
+    } catch (err: any) {
+      // Interception gracieuse du doublon concurrent P2002 sur externalTxId (attaque rejeu simultané Promise.all)
+      if (
+        err?.code === 'P2002' ||
+        err?.message?.includes('Unique constraint failed')
+      ) {
+        const existing = await this.prisma.paymentTransaction.findUnique({
+          where: { externalTxId: payload.externalTxId },
+        });
+        if (existing) {
+          return {
+            success: true,
+            message: 'Transaction déjà traitée avec succès (idempotent)',
+            transactionId: existing.id,
+            externalTxId: existing.externalTxId,
+            idempotent: true,
+          };
+        }
+      }
+      throw err;
+    }
 
     return {
       success: true,
