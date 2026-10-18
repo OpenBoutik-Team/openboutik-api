@@ -1,4 +1,6 @@
 import { createRequire } from 'module';
+import * as _nestjsCommon from '@nestjs/common';
+import * as _nestjsCore from '@nestjs/core';
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __require = createRequire(import.meta.url);
 var __commonJS = (cb, mod) => function __require2() {
@@ -164,7 +166,7 @@ var require_throttler_service = __commonJS({
     };
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.ThrottlerStorageService = exports.DEFAULT_SWEEP_INTERVAL = void 0;
-    var common_1 = __require("@nestjs/common");
+    var common_1 = _nestjsCommon;
     var async_hooks_1 = __require("async_hooks");
     exports.DEFAULT_SWEEP_INTERVAL = 6e4;
     var ThrottlerStorageService = class ThrottlerStorageService {
@@ -357,7 +359,7 @@ var require_throttler_decorator = __commonJS({
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.InjectThrottlerStorage = exports.InjectThrottlerOptions = exports.SkipThrottle = exports.Throttle = void 0;
-    var common_1 = __require("@nestjs/common");
+    var common_1 = _nestjsCommon;
     var throttler_constants_1 = require_throttler_constants();
     var throttler_providers_1 = require_throttler_providers();
     function setThrottlerMetadata(target, options) {
@@ -404,7 +406,7 @@ var require_throttler_exception = __commonJS({
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.ThrottlerException = exports.throttlerMessage = void 0;
-    var common_1 = __require("@nestjs/common");
+    var common_1 = _nestjsCommon;
     exports.throttlerMessage = "ThrottlerException: Too Many Requests";
     var ThrottlerException = class extends common_1.HttpException {
       constructor(message) {
@@ -449,8 +451,8 @@ var require_throttler_guard = __commonJS({
     var ThrottlerGuard_1;
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.ThrottlerGuard = void 0;
-    var common_1 = __require("@nestjs/common");
-    var core_1 = __require("@nestjs/core");
+    var common_1 = _nestjsCommon;
+    var core_1 = _nestjsCore;
     var hash_1 = require_hash();
     var ip_1 = require_ip();
     var throttler_storage_interface_1 = require_throttler_storage_interface();
@@ -653,7 +655,7 @@ var require_throttler_module = __commonJS({
     var ThrottlerModule_1;
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.ThrottlerModule = void 0;
-    var common_1 = __require("@nestjs/common");
+    var common_1 = _nestjsCommon;
     var throttler_constants_1 = require_throttler_constants();
     var throttler_providers_1 = require_throttler_providers();
     var ThrottlerModule = ThrottlerModule_1 = class ThrottlerModule {
