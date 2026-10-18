@@ -406,3 +406,236 @@ Réservé aux administrateurs de la plateforme pour la certification et les arbi
   * Nombre de visites cumulées (`totalViews`)
   * Taux de conversion exact (`conversionRate` en %)
 
+---
+
+## 🛍️ PARTIE 4 : NOUVEAUTÉS ROADMAP ESPACE ACHETEUR (OCTOBRE 2026)
+
+### 1. Multi-Providers Mobile Money (Wave, Orange Money & Free Money)
+* **Paiement par Free Money :**
+  * Le champ `paymentProvider` accepte désormais `"FREE_MONEY"` en plus de `"WAVE"` et `"ORANGE_MONEY"`.
+  * Numéro de réception Free Money de la boutique consultable sur la vitrine (`freeMoneyNumber`).
+* **Consultation du statut de transaction d'une commande :**
+  * `GET /payments/order/:orderId`
+  * Retourne la transaction associée, le statut (`INITIATED`, `SUCCESS`, `FAILED`), le fournisseur et la référence externe.
+
+### 2. Favoris / Wishlist Client
+* **Ajouter un produit aux favoris :**
+  * `POST /wishlists/:productId`
+* **Retirer un produit des favoris :**
+  * `DELETE /wishlists/:productId`
+* **Lister mes favoris :**
+  * `GET /wishlists` (retourne la liste complète des articles sauvegardés avec fiches produit enrichies).
+
+### 3. Messagerie Interne Conversationnelle Acheteur - Vendeur
+* **Envoyer un message :**
+  * `POST /messages`
+  * **Body :**
+    ```json
+    {
+      "receiverId": "uuid-vendeur-ou-client",
+      "shopId": "uuid-boutique",       // Optionnel
+      "productId": "uuid-produit",      // Optionnel (ex: question sur un article)
+      "orderId": "uuid-commande",       // Optionnel (ex: question après-vente)
+      "content": "Bonjour, le boubou blanc taille L est-il encore disponible à la boutique ?"
+    }
+    ```
+* **Récupérer le fil de discussion avec un utilisateur :**
+  * `GET /messages/conversation/:userId`
+* **Compteur global de messages non lus (Badge cloche/chat) :**
+  * `GET /messages/unread/count` (retourne `{ "unreadCount": 3 }`)
+* **Marquer un message comme lu :**
+  * `PATCH /messages/:id/read`
+
+### 4. Suivi de Commande & Stepper Timeline
+* **Consulter la timeline chronologique d'une commande :**
+  * `GET /orders/:id/trackings`
+  * Retourne les étapes ordonnées : `PAID_ESCROW` ➔ `PREPARING` ➔ `SHIPPED_TIAK_TIAK` ➔ `DELIVERED_CONFIRMED` avec horodatages précis et commentaires compréhensibles pour l'acheteur.
+* **Ajouter un jalon d'expédition (Dev 2 Marchand / Coursier) :**
+  * `POST /orders/:id/trackings`
+  * **Body :** `{ "statusStep": "SHIPPED_TIAK_TIAK", "title": "Colis remis au coursier Tiak-Tiak", "comment": "Livraison en cours sur Almadies" }`
+
+### 5. Filtres Catalogue & Recherche Avancée
+* `GET /catalog/products`
+* **Paramètres de requête supportés :**
+  * `search` : Recherche textuelle sur le nom et la description.
+  * `category` : Filtrage par catégorie.
+  * `minPrice` & `maxPrice` : Fourchette de prix en FCFA.
+  * `inStock` : `true` pour exclure les ruptures de stock.
+  * `shopId` : Filtrer les articles d'une boutique spécifique.
+  * `page` & `limit` : Pagination optimisée.
+  * `sortBy` : `price_asc`, `price_desc`, `newest`, `popular`.
+
+---
+
+## 🚀 PARTIE 5 : NOUVEAUTÉS ROADMAP PHASE 4 — DISRUPTION & SCALING (OCTOBRE 2026)
+
+### 1. Le « Wakhale » numérique — Négociation de Prix
+
+#### A. Flux Acheteur (Dev 1 - Marketplace)
+* **Initier une négociation de prix (Faire une offre) :**
+  * `POST /negotiations`
+  * **Body :**
+    ```json
+    {
+      "productId": "uuid-du-produit",
+      "proposedPriceFcfa": 12000, // Rabais max 50 % du prix initial
+      "notes": "Je prends tout de suite si vous acceptez 12 000 FCFA"
+    }
+    ```
+* **Consulter mes négociations en cours :**
+  * `GET /negotiations/me` (statuts : `PENDING`, `ACCEPTED`, `COUNTER_OFFERED`, `REJECTED`, `EXPIRED`)
+* **Détail d'une négociation :**
+  * `GET /negotiations/:id`
+* **Répondre à une contre-offre du vendeur :**
+  * `POST /negotiations/:id/respond`
+  * **Body :** `{ "action": "ACCEPT" }` ou `{ "action": "REJECT" }`
+* **Utilisation automatique du Coupon Wakhale :**
+  * Dès qu'une négociation passe à l'état `ACCEPTED` (que le vendeur ait accepté l'offre ou que l'acheteur ait accepté la contre-offre), l'API génère automatiquement un coupon unique lié : `data.generatedCoupon.code` (ex: `WAKHALE-A8B9C1`).
+  * Ce coupon est utilisable lors du checkout pour déduire immédiatement la différence négociée.
+
+#### B. Flux Vendeur (Dev 2 - Espace Marchand)
+* **Consulter les offres reçues pour ma boutique :**
+  * `GET /negotiations/me`
+* **Accepter, Rejeter ou Faire une contre-offre :**
+  * `POST /negotiations/:id/respond`
+  * **Body pour accepter :**
+    ```json
+    { "action": "ACCEPT", "notes": "Marché conclu !" }
+    ```
+  * **Body pour contre-offre :**
+    ```json
+    { "action": "COUNTER", "counterPriceFcfa": 13500, "notes": "Je vous le laisse au prix coûtant à 13 500 FCFA" }
+    ```
+  * **Body pour refuser :**
+    ```json
+    { "action": "REJECT", "notes": "Désolé, prix non négociable sur cet article" }
+    ```
+
+---
+
+### 2. Live Shopping & Vidéos Courtes
+
+#### A. Consultation des Flux (Dev 1 & Dev 2)
+* **Lister les Lives et Vidéos courtes :**
+  * `GET /streams?type=LIVE_STREAM&status=LIVE_NOW`
+  * `GET /streams?type=SHORT_VIDEO`
+* **Détail d'un flux :**
+  * `GET /streams/:id` (inclut les articles rattachés `streamProducts`).
+
+#### B. Gestion Vendeur (Dev 2 - Espace Marchand)
+* **Créer une session Live ou une vidéo :**
+  * `POST /streams`
+  * **Body :**
+    ```json
+    {
+      "title": "Vente Flash Spéciale Tabaski — Boubous & Sandales",
+      "description": "Direct depuis notre atelier à Sandaga avec remises exclusives",
+      "type": "LIVE_STREAM", // ou "SHORT_VIDEO"
+      "mediaUrl": "https://cdn.openboutik.sn/live/stream1.m3u8",
+      "thumbnailUrl": "https://cdn.openboutik.sn/thumbnails/live1.jpg",
+      "scheduledAt": "2026-10-20T18:00:00.000Z",
+      "productIds": ["uuid-produit-1", "uuid-produit-2"]
+    }
+    ```
+* **Changer le statut du stream :**
+  * `PATCH /streams/:id/status` avec `{ "status": "LIVE_NOW" }` ou `{ "status": "ENDED" }`
+* **Épingler un produit en direct (Pop-up Flash sur les écrans des spectateurs) :**
+  * `POST /streams/:id/pin-product`
+  * **Body :**
+    ```json
+    {
+      "productId": "uuid-produit-1",
+      "specialPriceFcfa": 10000 // Prix promotionnel exclusif pendant le direct
+    }
+    ```
+
+#### C. Intégration WebSocket Temps Réel (`/streams`)
+* **URL de connexion Socket.io :**
+  * Cloud : `https://openboutik-api.onrender.com/streams`
+  * Local : `http://localhost:4000/streams`
+* **Exemple d'intégration Frontend (Next.js / React) :**
+  ```typescript
+  import { io } from 'socket.io-client';
+
+  const socket = io('http://localhost:4000/streams', {
+    transports: ['websocket'],
+  });
+
+  // 1. Rejoindre la salle du Live
+  socket.emit('join_stream', { streamId: 'uuid-stream', userName: 'Fatou' });
+
+  // 2. Écouter le Pop-Up Produit Flash en direct
+  socket.on('live_product_popup', (data) => {
+    console.log('Produit épinglé en direct :', data.product, 'Prix flash :', data.specialPriceFcfa);
+    // Afficher le bandeau d'achat rapide 1-clic sur le lecteur vidéo
+  });
+
+  // 3. Envoyer un message dans le chat du Live
+  socket.emit('stream_chat_message', {
+    streamId: 'uuid-stream',
+    userName: 'Fatou',
+    message: 'Est-ce que la livraison sur Ouakam est possible aujourd’hui ?'
+  });
+
+  // 4. Recevoir les messages du chat
+  socket.on('stream_chat_message', (msg) => {
+    console.log(`${msg.userName} : ${msg.message}`);
+  });
+  ```
+
+---
+
+### 3. Achat Fractionné / BNPL (3 ou 4 fois)
+
+#### A. Vérification d'Identité KYC Acheteur
+L'octroi d'un échéancier 3x ou 4x exige un profil KYC vérifié :
+* **Soumettre sa pièce d'identité (Dev 1 - Espace Client) :**
+  * `POST /bnpl/kyc/submit`
+  * **Body :**
+    ```json
+    {
+      "idCardNumber": "1759199000123",
+      "idCardUrl": "https://storage.openboutik.sn/kyc/cni_client.jpg"
+    }
+    ```
+* **Validation / Rejet KYC (Dev 2 / Super-Admin Back-Office) :**
+  * `PATCH /bnpl/kyc/review`
+  * **Body :**
+    ```json
+    {
+      "userId": "uuid-client",
+      "status": "VERIFIED", // ou "REJECTED"
+      "rejectionReason": "Photo floue, merci de reprendre" // si rejeté
+    }
+    ```
+
+#### B. Souscription & Échéancier BNPL (Dev 1 - Marketplace Checkout)
+* **Initier le fractionnement d'une commande :**
+  * `POST /bnpl/initiate`
+  * **Body :**
+    ```json
+    {
+      "orderId": "uuid-commande",
+      "installmentsCount": 3 // ou 4
+    }
+    ```
+  * **Comportement financier strict :**
+    * Calcule les tranches au FCFA près sans arrondi flottant.
+    * Le reliquat de division est reporté sur l'échéance 1.
+    * Échéance 1 payable immédiatement, Échéance 2 à +30 jours, Échéance 3 à +60 jours.
+* **Consulter mes plans BNPL en cours :**
+  * `GET /bnpl/plans/me`
+* **Détail d'un plan avec toutes ses échéances :**
+  * `GET /bnpl/plans/:id`
+* **Régler une échéance :**
+  * `POST /bnpl/payments/:id/pay`
+  * **Body :**
+    ```json
+    {
+      "paymentProvider": "WAVE", // ou "ORANGE_MONEY", "FREE_MONEY"
+      "phone": "+221770030003"
+    }
+    ```
+  * Dès paiement de la dernière tranche, le plan passe automatiquement à `COMPLETED`.
+
+
