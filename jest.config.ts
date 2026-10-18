@@ -11,14 +11,25 @@ const { config: tsconfig } = ts.readConfigFile(
 const paths = tsconfig?.compilerOptions?.paths ?? {};
 
 const config: Config = {
+  preset: 'ts-jest/presets/default-esm',
   moduleFileExtensions: ['js', 'json', 'ts'],
   rootDir: '.',
   roots: ['<rootDir>/src'],
   testRegex: '.*\\.spec\\.ts$',
+  setupFiles: ['<rootDir>/test/jest-setup.mjs'],
   transform: {
-    '^.+\\.(t|j)s$': 'ts-jest',
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        useESM: true,
+        tsconfig: {
+          module: 'ES2022',
+        },
+      },
+    ],
   },
   moduleNameMapper: {
+    '^@nestjs/throttler$': '<rootDir>/test/vendor/nestjs-throttler.mjs',
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^src/(.*)$': '<rootDir>/src/$1',
     ...pathsToModuleNameMapper(paths, { prefix: '<rootDir>/' }),
