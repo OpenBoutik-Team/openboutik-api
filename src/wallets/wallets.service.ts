@@ -149,4 +149,56 @@ export class WalletsService {
       orderBy: { createdAt: 'desc' },
     });
   }
+
+  /**
+   * Recharger le portefeuille marchand (Simulation Wave, OM ou Free Money)
+   */
+  async topupWallet(ownerId: string, dto: { amountFcfa: number; provider: any; phone: string }) {
+    const shop = await this.prisma.shop.findUnique({
+      where: { ownerId },
+      include: { wallet: true },
+    });
+
+    if (!shop || !shop.wallet) {
+      throw new NotFoundException('Boutique ou portefeuille introuvable');
+    }
+
+    if (!dto.amountFcfa || dto.amountFcfa <= 0) {
+      throw new BadRequestException('Le montant doit être un entier strictement supérieur à 0 FCFA');
+    }
+
+    const updatedWallet = await this.prisma.$transaction(
+      async (tx) => {
+        const wallet = await tx.vendorWallet.update({
+          where: { id: shop.wallet!.id },
+          data: {
+            availableBalanceFcfa: { increment: dto.amountFcfa },
+          },
+        });
+
+        await tx.auditLog.create({
+          data: {
+            userId: ownerId,
+            action: 'WALLET_TOPUP',
+            entityType: 'WALLET',
+            entityId: shop.wallet!.id,
+            metadata: {
+              amountFcfa: dto.amountFcfa,
+              provider: dto.provider,
+              phone: dto.phone,
+            },
+          },
+        });
+
+        return wallet;
+      },
+      { maxWait: 20000, timeout: 30000 },
+    );
+
+    return {
+      message: `Recharge de ${dto.amountFcfa} FCFA effectuée avec succès via ${dto.provider}.`,
+      wallet: updatedWallet,
+      newAvailableBalanceFcfa: updatedWallet.availableBalanceFcfa,
+    };
+  }
 }

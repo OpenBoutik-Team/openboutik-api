@@ -17,10 +17,13 @@ import {
   EscrowStatus,
   DeliveryMethod,
   SubscriptionPlan,
+  SubscriptionStatus,
+  SalesChannel,
   Role,
   CouponType,
   Prisma,
 } from '../generated/prisma/client';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 
 export interface PreparedOrderItemData {
   productId: string;
@@ -41,6 +44,8 @@ export interface PreparedOrderData {
   couponCode?: string;
   couponId?: string;
   totalAmountFcfa: number;
+  buyerProtectionFeeFcfa: number;
+  salesChannel: SalesChannel;
   commissionRate: number;
   commissionAmountFcfa: number;
   netVendorAmountFcfa: number;
@@ -55,7 +60,10 @@ export interface PreparedOrderData {
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly subscriptionsService: SubscriptionsService,
+  ) {}
 
   /**
    * Création d'une commande / Checkout multi-boutiques en Transaction ACID
@@ -285,14 +293,25 @@ export class OrdersService {
         const discountedSubtotal = shopSubtotal - discountAmountFcfa;
         const deliveryFeeFcfa =
           dto.deliveryMethod === DeliveryMethod.PICKUP ? 0 : 2000;
-        const totalAmountFcfa = discountedSubtotal + deliveryFeeFcfa;
+
+        // Protection Séquestre & Opérateur Mobile Money (1 % par défaut)
+        const gatewayFeeRate = typeof shop.gatewayFeeRate === 'number' ? shop.gatewayFeeRate : 1.0;
+        const buyerProtectionFeeFcfa = Math.ceil(discountedSubtotal * (gatewayFeeRate / 100));
+        const totalAmountFcfa = discountedSubtotal + deliveryFeeFcfa + buyerProtectionFeeFcfa;
         grandTotalFcfa += totalAmountFcfa;
 
-        // Détermination du taux de commission selon le plan SaaS de la boutique
-        const commissionRate = this.getCommissionRate(shop.subscriptionPlan);
-        const commissionAmountFcfa = Math.round(
-          discountedSubtotal * (commissionRate / 100),
-        );
+        // Privilège 0 % de commission pour les forfaits PRO et PREMIUM (en essai, actif ou grâce 72h)
+        const hasZeroCommissionPrivilege =
+          (shop.subscriptionPlan === SubscriptionPlan.PRO ||
+            shop.subscriptionPlan === SubscriptionPlan.PREMIUM) &&
+          (shop.subscriptionStatus === SubscriptionStatus.TRIALING ||
+            shop.subscriptionStatus === SubscriptionStatus.ACTIVE ||
+            shop.subscriptionStatus === SubscriptionStatus.PAST_DUE);
+
+        const commissionRate = hasZeroCommissionPrivilege ? 0 : 3;
+        const commissionAmountFcfa = hasZeroCommissionPrivilege
+          ? 0
+          : Math.round(discountedSubtotal * 0.03);
         const netVendorAmountFcfa = discountedSubtotal - commissionAmountFcfa;
 
         // Génération du code OTP Tiak-Tiak à 6 chiffres
@@ -313,6 +332,8 @@ export class OrdersService {
           couponCode: appliedCouponCode,
           couponId: appliedCouponId,
           totalAmountFcfa,
+          buyerProtectionFeeFcfa,
+          salesChannel: SalesChannel.MARKETPLACE,
           commissionRate,
           commissionAmountFcfa,
           netVendorAmountFcfa,
@@ -356,6 +377,8 @@ export class OrdersService {
             couponCode: orderData.couponCode,
             couponId: orderData.couponId,
             totalAmountFcfa: orderData.totalAmountFcfa,
+            buyerProtectionFeeFcfa: orderData.buyerProtectionFeeFcfa,
+            salesChannel: orderData.salesChannel,
             commissionRate: orderData.commissionRate,
             commissionAmountFcfa: orderData.commissionAmountFcfa,
             netVendorAmountFcfa: orderData.netVendorAmountFcfa,
@@ -381,6 +404,7 @@ export class OrdersService {
               },
             },
           },
+
           include: {
             items: true,
             escrow: true,
@@ -714,6 +738,24 @@ export class OrdersService {
           totalEarnedFcfa: { increment: order.netVendorAmountFcfa },
         },
       });
+
+      // 3b. Phase 5 : Cumul des économies de commission réalisées par le marchand (0 % vs 3 %)
+      if (order.commissionAmountFcfa === 0 && order.subtotalFcfa > 0) {
+        const savedCommission = Math.round(
+          (order.subtotalFcfa - order.discountAmountFcfa) * 0.03,
+        );
+        if (savedCommission > 0) {
+          await tx.shop.update({
+            where: { id: order.shopId },
+            data: {
+              totalCommissionSavedFcfa: { increment: savedCommission },
+            },
+          });
+        }
+      }
+
+      // 3c. Phase 5 : Auto-Sweep — prélèvement automatique de l'abonnement en souffrance dès encaissement
+      await this.subscriptionsService.autoSweepIfDue(order.shopId, tx);
 
       // 4. Étape de confirmation dans l'historique OrderTracking
       if (tx.orderTracking) {
@@ -1062,12 +1104,11 @@ export class OrdersService {
   private getCommissionRate(plan: SubscriptionPlan): number {
     switch (plan) {
       case SubscriptionPlan.PREMIUM:
-        return Number(process.env.COMMISSION_RATE_PREMIUM) || 2;
       case SubscriptionPlan.PRO:
-        return Number(process.env.COMMISSION_RATE_PRO) || 3;
+        return 0;
       case SubscriptionPlan.FREE:
       default:
-        return Number(process.env.COMMISSION_RATE_FREE) || 4;
+        return 3;
     }
   }
 }

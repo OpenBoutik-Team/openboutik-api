@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -21,6 +22,8 @@ import { UpdateShopDto } from './dto/update-shop.dto';
 import { VerifyShopDto } from './dto/verify-shop.dto';
 import { SaveOnboardingStepDto, SubmitKycDto, ReviewKycDto } from './dto/onboarding.dto';
 import { SetVacationDto } from './dto/set-vacation.dto';
+import { UpdateShopCustomizationDto } from './dto/customization.dto';
+import { CreateShopSponsorDto, UpdateShopSponsorDto } from './dto/sponsor.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -183,6 +186,112 @@ export class ShopsController {
     @Body() dto: SaveOnboardingStepDto,
   ) {
     return this.shopsService.createShop(vendorId, dto);
+  }
+
+  @Get('storefront/:identifier')
+  @ApiOperation({
+    summary: 'Vitrine personnalisée SaaS (Sous-domaine ou Domaine personnalisé)',
+    description: 'Renvoie le catalogue complet avec grille organisée, thème et sponsors pour le sous-domaine/domaine. Si le plan est FREE/désactivé, renvoie une indication de redirection vers la marketplace.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Données de vitrine récupérées avec succès',
+  })
+  async getStorefront(@Param('identifier') identifier: string) {
+    return this.shopsService.getStorefront(identifier);
+  }
+
+  @Get('me/customization')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENDOR)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Récupérer la configuration visuelle et le sous-domaine du vendeur connecté',
+  })
+  async getShopCustomization(@CurrentUser('id') vendorId: string) {
+    return this.shopsService.getShopCustomization(vendorId);
+  }
+
+  @Patch('me/customization')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENDOR)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Mettre à jour la personnalisation visuelle (Store Builder) et le sous-domaine',
+    description: 'Permet de configurer les couleurs primaires/secondaires, le favicon, la barre d’annonce et le sous-domaine. Sous réserve des droits du forfait (ex: PRO/PREMIUM pour activer le sous-domaine).',
+  })
+  async updateShopCustomization(
+    @CurrentUser('id') vendorId: string,
+    @Body() dto: UpdateShopCustomizationDto,
+  ) {
+    return this.shopsService.updateShopCustomization(vendorId, dto);
+  }
+
+  @Post('me/sponsors')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENDOR)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Ajouter un sponsor / partenaire à la vitrine marchande',
+    description: 'Plan FREE: interdit (403). Plan PRO: max 5 sponsors. Plan PREMIUM: illimité.',
+  })
+  async createShopSponsor(
+    @CurrentUser('id') vendorId: string,
+    @Body() dto: CreateShopSponsorDto,
+  ) {
+    return this.shopsService.createShopSponsor(vendorId, dto);
+  }
+
+  @Get('me/sponsors')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENDOR)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Lister les sponsors / partenaires de la boutique du vendeur connecté',
+  })
+  async getShopSponsors(@CurrentUser('id') vendorId: string) {
+    return this.shopsService.getShopSponsors(vendorId);
+  }
+
+  @Patch('me/sponsors/:sponsorId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENDOR)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Mettre à jour un sponsor / partenaire (nom, logo, lien, ordre, statut)',
+  })
+  async updateShopSponsor(
+    @CurrentUser('id') vendorId: string,
+    @Param('sponsorId') sponsorId: string,
+    @Body() dto: UpdateShopSponsorDto,
+  ) {
+    return this.shopsService.updateShopSponsor(vendorId, sponsorId, dto);
+  }
+
+  @Delete('me/sponsors/:sponsorId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENDOR)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Supprimer un sponsor / partenaire de la boutique',
+  })
+  async deleteShopSponsor(
+    @CurrentUser('id') vendorId: string,
+    @Param('sponsorId') sponsorId: string,
+  ) {
+    return this.shopsService.deleteShopSponsor(vendorId, sponsorId);
+  }
+
+  @Get('me/dashboard-360')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENDOR)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Tableau de bord Vendeur 360° complet',
+    description: 'Statut SaaS, décompte Dunning, économies de commission cumulées, répartition des ventes par canal, santé des stocks et top produits.',
+  })
+  async getVendorDashboard360(@CurrentUser('id') vendorId: string) {
+    return this.shopsService.getVendorDashboard360(vendorId);
   }
 
   @Patch('admin/:id/kyc')

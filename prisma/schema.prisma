@@ -28,9 +28,24 @@ enum SubscriptionPlan {
 }
 
 enum SubscriptionStatus {
+  TRIALING
   ACTIVE
+  PAST_DUE
+  CANCELED_DOWNGRADED
   EXPIRED
   CANCELLED
+}
+
+enum SalesChannel {
+  MARKETPLACE
+  SUBDOMAIN
+  CUSTOM_DOMAIN
+}
+
+enum BillingAttemptStatus {
+  SUCCESS
+  FAILED_INSUFFICIENT_FUNDS
+  MANUAL_REACTIVATION
 }
 
 enum OrderStatus {
@@ -215,24 +230,52 @@ model Shop {
   isActive         Boolean          @default(true)
   
   // Mode Vacances
-  isOnVacation     Boolean          @default(false)
-  vacationMessage  String?          @db.Text
+  isOnVacation             Boolean            @default(false)
+  vacationMessage          String?            @db.Text
   
-  subscriptionPlan SubscriptionPlan @default(FREE)
+  // Facturation SaaS, Essai 30j & Dunning Engine (Phase 5)
+  subscriptionPlan         SubscriptionPlan   @default(FREE)
+  subscriptionStatus       SubscriptionStatus @default(ACTIVE)
+  commissionRate           Float              @default(3.0)
+  gatewayFeeRate           Float              @default(1.0)
+  hasUsedFreeTrial         Boolean            @default(false)
+  trialStartedAt           DateTime?
+  trialEndsAt              DateTime?
+  currentPeriodStart       DateTime?
+  currentPeriodEnd         DateTime?
+  gracePeriodEndsAt        DateTime?
+  billingRetryCount        Int                @default(0)
+  lastBillingAttemptAt     DateTime?
+  nextBillingRetryAt       DateTime?
+  totalCommissionSavedFcfa Int                @default(0)
 
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  // Sous-domaine & Domaine personnalisé (Phase 5)
+  subdomainEnabled         Boolean            @default(false)
+  customDomain             String?            @unique
+  customDomainVerified     Boolean            @default(false)
+
+  // Store Builder & Personnalisation (Phase 5)
+  faviconUrl               String?
+  slogan                   String?
+  announcementBarText      String?
+  announcementBarEnabled   Boolean            @default(false)
+  themeConfig              Json?
+
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
 
   // Relations
-  wallet              VendorWallet?
-  subscriptions       Subscription[]
-  categories          Category[]
-  products            Product[]
-  orders              Order[]
-  coupons             Coupon[]
-  priceNegotiations   PriceNegotiation[]
-  mediaStreams        MediaStream[]
-  installmentPlans    InstallmentPlan[]
+  wallet                   VendorWallet?
+  subscriptions            Subscription[]
+  categories               Category[]
+  products                 Product[]
+  orders                   Order[]
+  coupons                  Coupon[]
+  priceNegotiations        PriceNegotiation[]
+  mediaStreams             MediaStream[]
+  installmentPlans         InstallmentPlan[]
+  sponsors                 ShopSponsor[]
+  billingLogs              SubscriptionBillingLog[]
 
   @@map("shops")
 }
@@ -298,6 +341,8 @@ model Product {
   images             Json        // Tableau d'URLs JSON ["https://..."]
   
   isPublished        Boolean     @default(true)
+  displayOrder       Int         @default(0)
+  isFeatured         Boolean     @default(false)
 
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
@@ -317,6 +362,8 @@ model Product {
   @@index([categoryId])
   @@index([name])
   @@index([shopId, isPublished, priceFcfa])
+  @@index([shopId, displayOrder])
+  @@index([shopId, isFeatured])
   @@map("products")
 }
 
@@ -380,6 +427,10 @@ model Order {
   deliveryNotes            String?
   deliveryConfirmationCode String            // Code OTP (6 chiffres) remis au livreur
   
+  // Canal de vente & Protection Acheteur (Phase 5)
+  salesChannel             SalesChannel      @default(MARKETPLACE)
+  buyerProtectionFeeFcfa   Int               @default(0) // Frais de protection Séquestre & Opérateur (1%)
+
   status                   OrderStatus       @default(PENDING_PAYMENT)
   shippedAt                DateTime?
   deliveredAt              DateTime?
@@ -853,5 +904,71 @@ model InstallmentPayment {
   @@index([planId, status])
   @@index([dueDate, status])
   @@map("installment_payments")
+}
+
+// ------------------------------------------------------------------------------
+// EXTENSIONS PHASE 5 (HYBRIDE SAAS, STORE BUILDER & DUNNING ENGINE)
+// ------------------------------------------------------------------------------
+
+// Sponsors & Partenaires de la boutique
+model ShopSponsor {
+  id           String   @id @default(uuid())
+  shopId       String
+  shop         Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  name         String
+  logoUrl      String
+  websiteUrl   String?
+  description  String?  @db.Text
+  badgeText    String?
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([shopId, isActive, displayOrder])
+  @@map("shop_sponsors")
+}
+
+// Journal de Facturation SaaS & Relances Dunning
+model SubscriptionBillingLog {
+  id                      String               @id @default(uuid())
+  shopId                  String
+  shop                    Shop                 @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  plan                    SubscriptionPlan
+  amountFcfa              Int
+  attemptNumber           Int                  @default(1)
+  status                  BillingAttemptStatus
+  failureReason           String?              @db.Text
+  walletBalanceBeforeFcfa Int
+  walletBalanceAfterFcfa  Int
+
+  createdAt               DateTime             @default(now())
+
+  @@index([shopId, createdAt])
+  @@map("subscription_billing_logs")
+}
+
+// Registre Anti-Fraude au Mois d'Essai Gratuit
+model UsedTrialRegistry {
+  id           String   @id @default(uuid())
+  userId       String
+  shopId       String
+  phone        String?
+  waveNumber   String?
+  omNumber     String?
+  idCardNumber String?
+
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([shopId])
+  @@index([phone])
+  @@index([waveNumber])
+  @@index([omNumber])
+  @@index([idCardNumber])
+  @@map("used_trial_registries")
 }
 

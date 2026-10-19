@@ -15,6 +15,7 @@ import {
 } from '@nestjs/swagger';
 import { WalletsService } from './wallets.service';
 import { RequestPayoutDto } from './dto/request-payout.dto';
+import { TopupWalletDto } from './dto/topup-wallet.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -63,6 +64,23 @@ export class WalletsController {
     return this.walletsService.requestPayout(vendorId, dto);
   }
 
+  @Post('me/topup')
+  @Roles(Role.VENDOR)
+  @ApiOperation({
+    summary: 'Recharger son portefeuille marchand (Wave, Orange Money ou Free Money)',
+    description: 'Crédite immédiatement le solde disponible pour permettre les paiements d’abonnements SaaS ou réactivations.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Recharge créditée avec succès',
+  })
+  async topupWallet(
+    @CurrentUser('id') vendorId: string,
+    @Body() dto: TopupWalletDto,
+  ) {
+    return this.walletsService.topupWallet(vendorId, dto);
+  }
+
   @Get('admin/payouts')
   @Roles(Role.SUPER_ADMIN)
   @ApiOperation({
@@ -79,3 +97,4 @@ export class WalletsController {
     return this.walletsService.getAllPayouts(status);
   }
 }
+

@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import {
   SubscriptionPlan,
   DeliveryMethod,
@@ -47,29 +48,35 @@ describe('OrdersService (Unit Tests)', () => {
           provide: PrismaService,
           useValue: mockPrismaService,
         },
+        {
+          provide: SubscriptionsService,
+          useValue: {
+            autoSweepIfDue: jest.fn().mockResolvedValue(null),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<OrdersService>(OrdersService);
   });
 
-  describe('Règles Métier des Commissions SaaS (2 % à 4 %)', () => {
-    it('doit appliquer exactement 4 % de commission pour le plan FREE', () => {
+  describe('Règles Métier des Commissions SaaS (Phase 5 : 0 % PRO/PREMIUM, 3 % FREE)', () => {
+    it('doit appliquer exactement 3 % de commission pour le plan FREE', () => {
       const rate = (service as unknown as { getCommissionRate: (plan: SubscriptionPlan) => number })
         .getCommissionRate(SubscriptionPlan.FREE);
-      expect(rate).toBe(4);
-    });
-
-    it('doit appliquer exactement 3 % de commission pour le plan PRO', () => {
-      const rate = (service as unknown as { getCommissionRate: (plan: SubscriptionPlan) => number })
-        .getCommissionRate(SubscriptionPlan.PRO);
       expect(rate).toBe(3);
     });
 
-    it('doit appliquer exactement 2 % de commission pour le plan PREMIUM', () => {
+    it('doit appliquer 0 % de commission pour le plan PRO', () => {
+      const rate = (service as unknown as { getCommissionRate: (plan: SubscriptionPlan) => number })
+        .getCommissionRate(SubscriptionPlan.PRO);
+      expect(rate).toBe(0);
+    });
+
+    it('doit appliquer 0 % de commission pour le plan PREMIUM', () => {
       const rate = (service as unknown as { getCommissionRate: (plan: SubscriptionPlan) => number })
         .getCommissionRate(SubscriptionPlan.PREMIUM);
-      expect(rate).toBe(2);
+      expect(rate).toBe(0);
     });
 
     it('doit garantir l’intégrité financière stricte au FCFA près sans aucune perte de centime', () => {
@@ -78,9 +85,9 @@ describe('OrdersService (Unit Tests)', () => {
         500, 1000, 1235, 3333, 7777, 10000, 25000, 49999, 50000, 99999, 100000, 350000, 1000000,
       ];
       const plans = [
-        { plan: SubscriptionPlan.FREE, rate: 4 },
-        { plan: SubscriptionPlan.PRO, rate: 3 },
-        { plan: SubscriptionPlan.PREMIUM, rate: 2 },
+        { plan: SubscriptionPlan.FREE, rate: 3 },
+        { plan: SubscriptionPlan.PRO, rate: 0 },
+        { plan: SubscriptionPlan.PREMIUM, rate: 0 },
       ];
 
       for (const { rate } of plans) {

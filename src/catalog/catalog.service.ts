@@ -534,6 +534,61 @@ export class CatalogService {
   }
 
   /**
+   * Phase 5 : Réorganisation personnalisée de la vitrine produits (Store Builder)
+   */
+  async updateProductLayout(
+    ownerId: string,
+    items: Array<{ productId: string; displayOrder: number; isFeatured?: boolean }>,
+  ) {
+    const shop = await this.prisma.shop.findUnique({
+      where: { ownerId },
+    });
+
+    if (!shop) {
+      throw new NotFoundException('Boutique introuvable pour ce compte vendeur');
+    }
+
+    // Vérification BOLA stricte : tous les produits doivent appartenir au vendeur connecté
+    const productIds = items.map((i) => i.productId);
+    const existingProducts = await this.prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, shopId: true },
+    });
+
+    for (const item of items) {
+      const prod = existingProducts.find((p) => p.id === item.productId);
+      if (!prod) {
+        throw new NotFoundException(`Produit introuvable (${item.productId})`);
+      }
+      if (prod.shopId !== shop.id) {
+        throw new ForbiddenException(
+          `Vous n’avez pas le droit de modifier la position d’un produit appartenant à une autre boutique (${item.productId})`,
+        );
+      }
+    }
+
+    await this.prisma.$transaction(
+      async (tx) => {
+        for (const item of items) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: {
+              displayOrder: item.displayOrder,
+              ...(typeof item.isFeatured === 'boolean' ? { isFeatured: item.isFeatured } : {}),
+            },
+          });
+        }
+      },
+      { maxWait: 20000, timeout: 30000 },
+    );
+
+    return {
+      message: `${items.length} produit(s) réordonné(s) avec succès sur votre vitrine.`,
+      updatedCount: items.length,
+    };
+  }
+
+  /**
    * Méthode d'isolation de sécurité : vérifie que le vendeur possède bien le produit
    */
   private async findAndVerifyOwnership(ownerId: string, productId: string) {

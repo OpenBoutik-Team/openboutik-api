@@ -1,0 +1,63 @@
+/**
+ * Liste officielle des sous-domaines et slugs réservés par l'infrastructure OpenBoutik.
+ * Aucun commerçant ne peut réserver l'un de ces termes comme slug de boutique.
+ */
+export const RESERVED_SLUGS = [
+  'www',
+  'api',
+  'admin',
+  'seller',
+  'dashboard',
+  'app',
+  'checkout',
+  'billing',
+  'cart',
+  'orders',
+  'order',
+  'shop',
+  'shops',
+  'mail',
+  'smtp',
+  'pop',
+  'imap',
+  'support',
+  'help',
+  'pay',
+  'payment',
+  'wallet',
+  'escrow',
+  'webhook',
+  'webhooks',
+  'cdn',
+  'static',
+  'assets',
+  'media',
+  'stream',
+  'live',
+  'blog',
+  'status',
+  'health',
+  'auth',
+  'login',
+  'register',
+  'signup',
+  'signin',
+  'account',
+  'profile',
+  'settings',
+  'security',
+  'legal',
+  'terms',
+  'privacy',
+  'openboutik',
+  'adafrik',
+  'wave',
+  'orangemoney',
+  'freemoney',
+  'tiaktiak',
+] as const;
+
+export function isReservedSlug(slug: string): boolean {
+  if (!slug) return false;
+  return RESERVED_SLUGS.includes(slug.toLowerCase().trim() as any);
+}

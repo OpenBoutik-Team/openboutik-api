@@ -13,13 +13,41 @@ async function bootstrap() {
   // 1. Sécurité des en-têtes HTTP
   app.use(helmet());
 
-  // 2. Configuration CORS pour les fronts Marketplace (3000) et Seller/Admin (3001)
-  const allowedOrigins = process.env.CORS_ORIGINS
-    ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim())
-    : ['http://localhost:3000', 'http://localhost:3001'];
+  // 2. Configuration CORS dynamique pour les sous-domaines Wildcard (*.openboutik.sn), Localhost et Vercel
+  const explicitOrigins = (process.env.CORS_ORIGINS || process.env.FRONTEND_URL || 'http://localhost:3000,http://localhost:3001')
+    .split(',')
+    .map((o) => o.trim().toLowerCase())
+    .filter(Boolean);
+
+  const wildcardPatterns = [
+    /^http:\/\/([a-z0-9-]+\.)?localhost(:\d+)?$/i,
+    /^https:\/\/([a-z0-9-]+\.)?openboutik\.(sn|com)$/i,
+    /^https:\/\/([a-z0-9-]+\.)?vercel\.app$/i,
+  ];
 
   app.enableCors({
-    origin: allowedOrigins,
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      // 1. Appels directs sans Origin (SSR Next.js, apps mobiles, requêtes cURL, Webhooks)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      const lowerOrigin = origin.toLowerCase();
+
+      // 2. Origines explicitement déclarées dans .env
+      if (explicitOrigins.includes(lowerOrigin)) {
+        return callback(null, true);
+      }
+
+      // 3. Validation par regex Wildcard (sous-domaines et previews)
+      const isAllowedByPattern = wildcardPatterns.some((pattern) => pattern.test(lowerOrigin));
+      if (isAllowedByPattern) {
+        return callback(null, true);
+      }
+
+      logger.warn(`Requête CORS bloquée pour l'origine : ${origin}`);
+      return callback(new Error(`CORS non autorisé pour l'origine : ${origin}`), false);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],

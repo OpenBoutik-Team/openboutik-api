@@ -24,6 +24,7 @@ import { QueryProductsDto } from './dto/query-products.dto';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { CreateProductVariantDto } from './dto/create-variant.dto';
 import { UpdateProductVariantDto } from './dto/update-variant.dto';
+import { UpdateProductLayoutDto } from './dto/layout.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -123,6 +124,25 @@ export class CatalogController {
     @Body() dto: CreateProductDto,
   ) {
     return this.catalogService.createProduct(vendorId, dto);
+  }
+
+  @Patch('products/me/layout')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENDOR)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Ordonner l’apparition des produits sur la vitrine (Store Builder)',
+    description: 'Permet au commerçant de définir le displayOrder et le statut isFeatured de ses articles.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Ordre des produits mis à jour avec succès',
+  })
+  async updateProductLayout(
+    @CurrentUser('id') vendorId: string,
+    @Body() dto: UpdateProductLayoutDto,
+  ) {
+    return this.catalogService.updateProductLayout(vendorId, dto.items);
   }
 
   @Patch('products/:id')
