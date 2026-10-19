@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { PrismaClient } from '../generated/prisma/client';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
@@ -13,7 +14,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     try {
       const parsed = new URL(rawUrl);
       if (!parsed.searchParams.has('connectionLimit')) {
-        parsed.searchParams.set('connectionLimit', '3');
+        parsed.searchParams.set('connectionLimit', '2');
       }
       connectionString = parsed.toString();
     } catch {

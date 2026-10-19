@@ -121,7 +121,7 @@ export class WalletsService {
         payout,
         remainingBalanceFcfa: updatedWallet.availableBalanceFcfa,
       };
-    });
+    }, { maxWait: 20000, timeout: 30000 });
 
     return result;
   }

@@ -138,7 +138,7 @@ export class DisputesService {
       });
 
       return createdDispute;
-    });
+    }, { maxWait: 20000, timeout: 30000 });
 
     return dispute;
   }
@@ -340,7 +340,7 @@ export class DisputesService {
 
         return updatedDispute;
       }
-    });
+    }, { maxWait: 20000, timeout: 30000 });
 
     return resolved;
   }

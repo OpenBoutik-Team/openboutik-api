@@ -49,7 +49,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     ) {
       // Interception des erreurs Prisma (P2002, P2025, P2003...)
       const prismaCode = (exception as { code: string }).code;
-      this.logger.warn(`Erreur Prisma interceptée : [${prismaCode}]`);
+      this.logger.warn(`Erreur Prisma interceptée : [${prismaCode}]`, (exception as any)?.meta?.driverAdapterError || (exception as any)?.message);
 
       switch (prismaCode) {
         case 'P2002':

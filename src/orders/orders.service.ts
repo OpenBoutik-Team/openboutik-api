@@ -434,7 +434,7 @@ export class OrdersService {
         checkoutSession,
         orders: results,
       };
-    });
+    }, { maxWait: 20000, timeout: 30000 });
 
     return createdOrders;
   }
@@ -750,7 +750,7 @@ export class OrdersService {
       });
 
       return confirmedOrder;
-    });
+    }, { maxWait: 20000, timeout: 30000 });
 
     return updatedOrder;
   }

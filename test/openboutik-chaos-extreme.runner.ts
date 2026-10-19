@@ -87,7 +87,6 @@ async function runChaosExtremeSuite() {
 
   const fulfilledCount = purchaseResults.filter((r) => r.status === 'fulfilled').length;
   const rejectedCount = purchaseResults.filter((r) => r.status === 'rejected').length;
-
   console.log(`  📊 Résultats assaut stock : ${fulfilledCount} acceptés, ${rejectedCount} rejetés proprement`);
 
   // Vérification atomique

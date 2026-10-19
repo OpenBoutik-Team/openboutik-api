@@ -351,6 +351,8 @@ async function runOnboardingAndKycSuite() {
   console.log('\n========================================================================================');
   console.log(`🎉 SUITE TERMINÉE : ${passedTests} / ${totalTests} ASSERTIONS VALIDÉES AVEC SUCCÈS (100 %) !`);
   console.log('========================================================================================\n');
+  await prisma.$disconnect();
+  process.exit(0);
 }
 
 runOnboardingAndKycSuite()
