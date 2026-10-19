@@ -12,6 +12,7 @@ import {
   BillingAttemptStatus,
   Prisma,
 } from '../generated/prisma/client';
+import { SubscriptionNotificationService } from './subscription-notification.service';
 import { UpgradeSubscriptionDto } from './dto/upgrade-subscription.dto';
 
 export interface PlanDetails {
@@ -26,8 +27,15 @@ export interface PlanDetails {
 @Injectable()
 export class SubscriptionsService {
   private readonly logger = new Logger(SubscriptionsService.name);
+  private readonly notificationService: SubscriptionNotificationService;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    notificationService?: SubscriptionNotificationService,
+  ) {
+    this.notificationService =
+      notificationService ?? new SubscriptionNotificationService();
+  }
 
   /**
    * Grille tarifaire officielle des abonnements SaaS OpenBoutik (Phase 5)
@@ -66,18 +74,18 @@ export class SubscriptionsService {
       },
       {
         plan: SubscriptionPlan.PREMIUM,
-        name: 'Forfait Premium Élite (Domaine Personnalisé & BNPL)',
+        name: 'Forfait Premium Élite (Boost Ventes, BNPL & Visibilité VIP)',
         priceFcfa: 15000,
         commissionRate: 0.0,
         subdomainEnabled: true,
         features: [
-          '0 % de commission sur toutes vos ventes',
-          'Sous-domaine dédié + Nom de domaine personnalisé (ex: www.maboutique.sn)',
-          'Sponsors et partenaires illimités sur votre vitrine',
-          'Achat fractionné BNPL (3x / 4x) activé pour vos acheteurs',
-          'Badge Vendeur Vérifié officiel prioritaire',
-          'Mise en avant sponsorisée sur la marketplace centrale',
-          'Support prioritaire 24/7 par WhatsApp et gestionnaire dédié',
+          '0 % de commission sur toutes vos ventes (vous gardez 100 % de vos bénéfices)',
+          'Site dédié instantané en 1 clic (https://nom-boutique.openboutik.sn)',
+          'Achat fractionné BNPL (Paiement 3x / 4x par Wave & Orange Money pour vos acheteurs)',
+          'Badge officiel Vendeur Vérifié Or (Confiance maximale des acheteurs anti-arnaque)',
+          'Mise en avant sponsorisée Top Vendeur sur la page d’accueil OpenBoutik',
+          'Vitrine illimitée : partenaires, sponsors et grille produits personnalisée',
+          'Support VIP WhatsApp 24/7 & Conciergerie (assistance pour brancher votre propre domaine si vous en avez un)',
         ],
       },
     ];
@@ -215,7 +223,7 @@ export class SubscriptionsService {
     const execute = async (tx: Prisma.TransactionClient) => {
       const shop = await tx.shop.findUnique({
         where: { id: shopId },
-        include: { wallet: true },
+        include: { wallet: true, owner: true },
       });
 
       if (!shop || !shop.wallet) {
@@ -290,10 +298,26 @@ export class SubscriptionsService {
           `Prélèvement de ${planPriceFcfa} FCFA réussi pour la boutique "${shop.name}". Nouveau solde : ${balanceAfter} FCFA.`,
         );
 
+        const recipientPhone =
+          shop.whatsappNumber || (shop as any).owner?.phone || '';
+        let notification = null;
+        if (recipientPhone) {
+          notification = await this.notificationService.notifyRenewalSuccess({
+            shopId: shop.id,
+            shopName: shop.name,
+            recipientPhone,
+            plan: shop.subscriptionPlan,
+            amountFcfa: planPriceFcfa,
+            availableBalanceFcfa: balanceAfter,
+            nextPeriodEnd,
+          });
+        }
+
         return {
           success: true,
           message: 'Abonnement renouvelé avec succès.',
           shop: updatedShop,
+          notification,
         };
       }
 
@@ -341,6 +365,37 @@ export class SubscriptionsService {
           `Tentative ${newRetryCount}/6 échouée pour la boutique "${shop.name}". Période de grâce jusqu’au ${gracePeriodEndsAt.toISOString()}.`,
         );
 
+        const recipientPhone =
+          shop.whatsappNumber || (shop as any).owner?.phone || '';
+        let notification = null;
+        if (recipientPhone) {
+          if (newRetryCount >= 4) {
+            notification =
+              await this.notificationService.notifyGraceExpiringUrgent({
+                shopId: shop.id,
+                shopName: shop.name,
+                recipientPhone,
+                plan: shop.subscriptionPlan,
+                amountFcfa: planPriceFcfa,
+                availableBalanceFcfa: availableBalance,
+                attemptNumber: newRetryCount,
+                gracePeriodEndsAt,
+              });
+          } else {
+            notification =
+              await this.notificationService.notifyInsufficientFundsGracePeriod({
+                shopId: shop.id,
+                shopName: shop.name,
+                recipientPhone,
+                plan: shop.subscriptionPlan,
+                amountFcfa: planPriceFcfa,
+                availableBalanceFcfa: availableBalance,
+                attemptNumber: newRetryCount,
+                gracePeriodEndsAt,
+              });
+          }
+        }
+
         return {
           success: false,
           status: SubscriptionStatus.PAST_DUE,
@@ -349,6 +404,7 @@ export class SubscriptionsService {
           remainingRetries: 6 - newRetryCount,
           gracePeriodEndsAt,
           shop: updatedShop,
+          notification,
         };
       }
 
@@ -377,6 +433,22 @@ export class SubscriptionsService {
         `6ème échec de facturation atteint pour la boutique "${shop.name}". Rétrogradation en FREE et coupure des privilèges effectuée.`,
       );
 
+      const recipientPhone =
+        shop.whatsappNumber || (shop as any).owner?.phone || '';
+      let notification = null;
+      if (recipientPhone) {
+        notification =
+          await this.notificationService.notifyDowngradeSuspension({
+            shopId: shop.id,
+            shopName: shop.name,
+            recipientPhone,
+            plan: shop.subscriptionPlan,
+            amountFcfa: planPriceFcfa,
+            availableBalanceFcfa: availableBalance,
+            attemptNumber: 6,
+          });
+      }
+
       return {
         success: false,
         status: SubscriptionStatus.CANCELED_DOWNGRADED,
@@ -385,6 +457,7 @@ export class SubscriptionsService {
         message:
           'Délai de grâce expiré après 6 tentatives infructueuses. La boutique a été rétrogradée sur le plan gratuit.',
         shop: downgradedShop,
+        notification,
       };
     };
 
