@@ -3,7 +3,7 @@
 > **Branche auditée :** `develop`  
 > **Date d'audit :** 19 Octobre 2026  
 > **Auditeur :** Auditeur Senior AppSec & Architecte Principal Fintech  
-> **Pilote / Architecte référent :** Bécaye Doumbouya (`HYPNOTYZEDCHART` / `Becaye_DⓂ️Y`), Lead Backend Engineer (Dev 3)  
+> **Pilote / Architecte référent :** Lead Backend Engineer & Security Architect (Dev 3), OpenBoutik Team  
 > **Périmètre :** Code source complet (`src/`), Schéma BDD (`prisma/`), Configuration & Tests (`test/`), Infrastructure Clever Cloud & Render  
 
 ---

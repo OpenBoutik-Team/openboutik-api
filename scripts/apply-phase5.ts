@@ -43,8 +43,8 @@ async function run() {
       await conn.query(stmt);
       console.log(`✅ Statement ${i + 1}/${statements.length} executed successfully.`);
     } catch (err: any) {
-      // Ignore if column/table already exists or duplicate index
-      if (err.errno === 1060 || err.errno === 1050 || err.errno === 1061) {
+      // Ignore if column/table already exists or duplicate index/foreign key
+      if (err.errno === 1060 || err.errno === 1050 || err.errno === 1061 || err.errno === 1826) {
         console.log(`ℹ️ Statement ${i + 1}/${statements.length} already applied (${err.message}). Skipping.`);
       } else {
         console.error(`❌ Error on statement ${i + 1}: ${err.message}`);

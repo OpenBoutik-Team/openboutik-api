@@ -1,5 +1,5 @@
 # OPENBOUTIK API — ARCHITECTURE & CONTRAT TECHNIQUE (v1.0)
-> **Dépôt :** `openboutik-api` (Dev 3 - Becaye)  
+> **Dépôt :** `openboutik-api` (Dev 3 - Lead Backend Architecture)  
 > **Branche active :** `develop`  
 > **Stack :** NestJS (CJS) • Prisma ORM v7 • MySQL (InnoDB) • TypeScript  
 > **Destinataires :** Dev 1 (`openboutik-marketplace`), Dev 2 (`openboutik-seller` & Super-Admin) et Dev 3 (Backend)
@@ -224,13 +224,15 @@ Les commissions sont prélevées automatiquement lors du déblocage du séquestr
 
 ---
 
-## 10. COMPTES DE TEST DU SEED (PRÉCONFIGURÉS)
+## 10. COMPTES DU SEED (PRÉCONFIGURÉS & CERTIFIÉS)
 
-> **Mot de passe universel de test :** `Passer123!`
-
-1. **Super-Admin (Becmans Ndiaye — Équipe Dev OpenBoutik) :**
-   * **Identifiant :** `admin.03@gmail.com` ou `+221770000001`
+1. **Super-Admin Officiel (Direction Opérations & Arbitrage OpenBoutik) :**
+   * **Identifiant :** `admin@openboutik.sn` ou `+221770000001`
+   * **Mot de passe certifié :** `Admin@OpenBoutik2026!`
    * **Rôle :** `SUPER_ADMIN`
+   * **Accès :** Arbitrage des litiges séquestre, validation KYC vendeurs, supervision financière.
+
+> **Mot de passe de démonstration (Vendeurs & Clients de test) :** `Passer123!`
 2. **Vendeur 1 — Boutique « Teranga Mode » (Médina, Dakar) :**
    * **Identifiant :** `moussa.diop@terangamode.sn` ou `+221771234567`
    * **Slug vitrine :** `teranga-mode` (Plan `PRO` - 3 % commission)

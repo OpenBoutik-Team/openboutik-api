@@ -56,14 +56,15 @@ async function main() {
 
   const salt = await bcrypt.genSalt(10);
   const defaultPasswordHash = await bcrypt.hash('Passer123!', salt);
+  const adminPasswordHash = await bcrypt.hash('Admin@OpenBoutik2026!', salt);
 
   // 1. Super-Admin (Pôle Équipe Dev & Opérations OpenBoutik)
   const superAdmin = await prisma.user.create({
     data: {
-      email: 'admin.03@gmail.com',
+      email: 'admin@openboutik.sn',
       phone: '+221770000001',
-      fullName: 'Becmans Ndiaye',
-      passwordHash: defaultPasswordHash,
+      fullName: 'Direction Super-Admin OpenBoutik',
+      passwordHash: adminPasswordHash,
       role: Role.SUPER_ADMIN,
       acceptedTermsAt: new Date(),
     },
