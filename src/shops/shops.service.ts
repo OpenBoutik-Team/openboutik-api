@@ -880,6 +880,92 @@ export class ShopsService {
   }
 
   /**
+   * Sauvegarder la configuration JSON du thème (Store Builder - Dev 2)
+   * Route spécifique : PUT /shops/me/theme
+   */
+  async saveShopTheme(ownerId: string, themeConfig: Record<string, any>) {
+    const shop = await this.prisma.shop.findUnique({
+      where: { ownerId },
+    });
+
+    if (!shop) {
+      throw new NotFoundException('Boutique introuvable pour ce compte vendeur');
+    }
+
+    const mergedThemeConfig = {
+      ...(shop.themeConfig as any),
+      ...themeConfig,
+    };
+
+    const updateData: any = {
+      themeConfig: mergedThemeConfig,
+    };
+
+    if (themeConfig?.primaryColor) {
+      updateData.primaryColor = themeConfig.primaryColor;
+    }
+    if (themeConfig?.bannerUrl) {
+      updateData.bannerUrl = themeConfig.bannerUrl;
+    }
+    if (themeConfig?.logoUrl) {
+      updateData.logoUrl = themeConfig.logoUrl;
+    }
+    if (themeConfig?.slogan) {
+      updateData.slogan = themeConfig.slogan;
+    }
+    if (themeConfig?.announcementBarText !== undefined) {
+      updateData.announcementBarText = themeConfig.announcementBarText;
+    }
+    if (typeof themeConfig?.announcementBarEnabled === 'boolean') {
+      updateData.announcementBarEnabled = themeConfig.announcementBarEnabled;
+    }
+
+    const updatedShop = await this.prisma.shop.update({
+      where: { id: shop.id },
+      data: updateData,
+    });
+
+    return {
+      success: true,
+      message: 'Thème de la boutique enregistré avec succès.',
+      themeConfig: updatedShop.themeConfig,
+      shop: updatedShop,
+    };
+  }
+
+  /**
+   * Récupérer la configuration JSON du thème (Store Builder - Dev 2)
+   * Route spécifique : GET /shops/me/theme
+   */
+  async getShopTheme(ownerId: string) {
+    const shop = await this.prisma.shop.findUnique({
+      where: { ownerId },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        primaryColor: true,
+        bannerUrl: true,
+        logoUrl: true,
+        slogan: true,
+        announcementBarText: true,
+        announcementBarEnabled: true,
+        themeConfig: true,
+      },
+    });
+
+    if (!shop) {
+      throw new NotFoundException('Boutique introuvable pour ce compte vendeur');
+    }
+
+    return {
+      success: true,
+      themeConfig: shop.themeConfig || {},
+      shop,
+    };
+  }
+
+  /**
    * Ajouter un sponsor / partenaire (Store Builder)
    */
   async createShopSponsor(ownerId: string, dto: CreateShopSponsorDto) {

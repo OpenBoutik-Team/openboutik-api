@@ -275,5 +275,28 @@ Pour maximiser la conversion et la rétention sur le marché ouest-africain, 3 m
 
 ---
 
-*Ce dossier atteste de la conformité intégrale du backend OpenBoutik aux exigences du cahier des charges officiel, à la sécurité financière, aux extensions Espace Acheteur et à la Roadmap Phase 4 Disruption & Scaling.*
+## 8. SYNCHRONISATION DEV 1 & DEV 2 — STORE BUILDER & CONSIGNES CRITIQUES (OCTOBRE 2026)
 
+Conformément aux consignes de synchronisation inter-équipes :
+
+### A. Route Dédiée Store Builder (`PUT /shops/me/theme` & `GET /shops/me/theme`)
+* **Endpoint de sauvegarde :** `PUT /shops/me/theme`
+  * Reçoit le JSON complet généré par le Store Builder de Dev 2 (`themeConfig`).
+  * Stocke le JSON sans perte dans la colonne MySQL `shop.themeConfig`.
+  * Synchronise automatiquement les attributs relationnels directs (`primaryColor`, `bannerUrl`, `logoUrl`, `slogan`, `announcementBarText`, `announcementBarEnabled`).
+* **Endpoint de consultation :** `GET /shops/me/theme`
+  * Permet à Dev 2 de recharger la configuration exacte du thème lors de l'ouverture du Store Builder.
+
+### B. Statut Dunning & Alertes Recouvrement
+* Accessible via `GET /shops/vendor/me` et `GET /shops/me/dashboard-360`.
+* Champ `subscriptionAndDomain.dunningAlert` :
+  * Indique si la boutique est en `PAST_DUE`.
+  * Fournit le nombre de tentatives (`retryCount`), la date limite de grâce (`gracePeriodEndsAt`) et le message explicatif pour permettre à Dev 2 d'afficher le bandeau rouge avec décompte.
+
+### C. Validation & Protection des Slugs Réservés
+* Accessible via `GET /shops/check-slug/:slug` et vérifié à chaque création/mise à jour de boutique.
+* Rejette immédiatement les mots-clés système critiques (`api`, `admin`, `www`, `checkout`, `dashboard`, `auth`, etc.) pour éviter tout détournement de routage.
+
+---
+
+*Ce dossier atteste de la conformité intégrale du backend OpenBoutik aux exigences du cahier des charges officiel, à la sécurité financière, aux extensions Espace Acheteur, à la Roadmap Phase 4 et à la synchronisation Store Builder Dev 2.*

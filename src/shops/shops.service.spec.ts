@@ -385,4 +385,61 @@ describe('ShopsService (Onboarding & KYC Unit Tests)', () => {
       );
     });
   });
+
+  describe('Store Builder Theme Sync (saveShopTheme & getShopTheme)', () => {
+    it('saveShopTheme : doit fusionner le JSON du thème et synchroniser les colonnes visuelles', async () => {
+      mockPrismaService.shop.findUnique.mockResolvedValue({
+        id: 'shop-1',
+        themeConfig: { initialKey: 'test' },
+      });
+
+      mockPrismaService.shop.update.mockResolvedValue({
+        id: 'shop-1',
+        primaryColor: '#10B981',
+        themeConfig: { initialKey: 'test', primaryColor: '#10B981', wakhaleEnabled: true },
+      });
+
+      const res = await service.saveShopTheme('vendor-1', {
+        primaryColor: '#10B981',
+        wakhaleEnabled: true,
+      });
+
+      expect(res.success).toBe(true);
+      expect(mockPrismaService.shop.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'shop-1' },
+          data: expect.objectContaining({
+            primaryColor: '#10B981',
+            themeConfig: {
+              initialKey: 'test',
+              primaryColor: '#10B981',
+              wakhaleEnabled: true,
+            },
+          }),
+        }),
+      );
+    });
+
+    it('getShopTheme : doit renvoyer la configuration visuelle et le thème de la boutique', async () => {
+      mockPrismaService.shop.findUnique.mockResolvedValue({
+        id: 'shop-1',
+        name: 'Teranga Mode',
+        slug: 'teranga-mode',
+        primaryColor: '#10B981',
+        bannerUrl: null,
+        logoUrl: null,
+        slogan: 'Le chic sénégalais',
+        announcementBarText: 'Livraison gratuite à Dakar',
+        announcementBarEnabled: true,
+        themeConfig: { primaryColor: '#10B981', wakhaleEnabled: true },
+      });
+
+      const res = await service.getShopTheme('vendor-1');
+
+      expect(res.success).toBe(true);
+      expect(res.themeConfig).toEqual({ primaryColor: '#10B981', wakhaleEnabled: true });
+      expect(res.shop.slug).toBe('teranga-mode');
+    });
+  });
 });
+

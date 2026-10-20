@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Patch,
   Delete,
   Body,
@@ -199,6 +200,32 @@ export class ShopsController {
   })
   async getStorefront(@Param('identifier') identifier: string) {
     return this.shopsService.getStorefront(identifier);
+  }
+
+  @Put('me/theme')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENDOR)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Sauvegarder le JSON du Store Builder (Route spécifique Dev 2)',
+    description: 'Enregistre le JSON complet du thème généré par le Store Builder (couleurs, wakhale, bannières, etc.).',
+  })
+  async saveShopTheme(
+    @CurrentUser('id') vendorId: string,
+    @Body() themeConfig: Record<string, any>,
+  ) {
+    return this.shopsService.saveShopTheme(vendorId, themeConfig);
+  }
+
+  @Get('me/theme')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.VENDOR)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Récupérer le JSON du Store Builder (Route spécifique Dev 2)',
+  })
+  async getShopTheme(@CurrentUser('id') vendorId: string) {
+    return this.shopsService.getShopTheme(vendorId);
   }
 
   @Get('me/customization')

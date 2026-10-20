@@ -406,6 +406,51 @@ Réservé aux administrateurs de la plateforme pour la certification et les arbi
   * Nombre de visites cumulées (`totalViews`)
   * Taux de conversion exact (`conversionRate` en %)
 
+#### I. Store Builder — Sauvegarde & Récupération du Thème JSON (Spécifique Dev 2)
+* **Sauvegarder le JSON complet du Store Builder :**
+  * `PUT /shops/me/theme`
+  * **Headers :** `Authorization: Bearer <vendeur_token>`
+  * **Body (JSON libre / Theme Builder) :**
+    ```json
+    {
+      "primaryColor": "#10B981",
+      "bannerUrl": "https://res.cloudinary.com/.../banner.jpg",
+      "logoUrl": "https://res.cloudinary.com/.../logo.png",
+      "slogan": "Le chic sénégalais au cœur de Dakar",
+      "announcementBarText": "Livraison gratuite à partir de 25 000 FCFA",
+      "announcementBarEnabled": true,
+      "wakhaleEnabled": true,
+      "layout": "modern-grid",
+      "sections": [
+        { "type": "hero-slider", "order": 1, "enabled": true },
+        { "type": "featured-products", "order": 2, "limit": 8 }
+      ],
+      "customCss": ""
+    }
+    ```
+  * **Comportement API :** Met à jour la colonne `shop.themeConfig` en base tout en synchronisant automatiquement les colonnes relationnelles directes (`primaryColor`, `bannerUrl`, `logoUrl`, etc.).
+* **Récupérer le JSON du Store Builder :**
+  * `GET /shops/me/theme`
+  * **Headers :** `Authorization: Bearer <vendeur_token>`
+  * **Retourne :** `{ "success": true, "themeConfig": { ... }, "shop": { ... } }`
+
+#### J. Statut Dunning & Alertes Recouvrement Vendeur (Spécifique Dev 2)
+* **Consultation du profil et santé de la boutique :**
+  * `GET /shops/vendor/me` ou `GET /shops/me/dashboard-360`
+  * **Champ `subscriptionAndDomain.dunningAlert` :**
+    * Si la boutique a un paiement SaaS échoué :
+      * `isPastDue`: `true`
+      * `subscriptionStatus`: `"PAST_DUE"`
+      * `retryCount`: Nombre de relances effectuées (ex: 2)
+      * `gracePeriodEndsAt`: Date ISO limite avant suspension du sous-domaine/boutique
+      * `warningMessage`: Message d'alerte explicite en français/FCFA
+    * **Action UI requise pour Dev 2 :** Afficher un bandeau rouge persistant en haut du dashboard marchand avec un décompte des jours restants avant coupure et un bouton de régularisation Wave/OM.
+
+#### K. Validation en Temps Réel des Slugs & Mots Réservés (Dev 1 & Dev 2)
+* `GET /shops/check-slug/:slug`
+* **Protection Système :** Rejette immédiatement avec `{ "available": false, "reason": "Ce nom est un mot-clé système réservé." }` les slugs suivants :
+  * `api`, `admin`, `www`, `app`, `auth`, `dashboard`, `checkout`, `mail`, `secure`, `static`, etc.
+
 ---
 
 ## 🛍️ PARTIE 4 : NOUVEAUTÉS ROADMAP ESPACE ACHETEUR (OCTOBRE 2026)
