@@ -470,6 +470,10 @@ Réservé aux administrateurs de la plateforme pour la certification et les arbi
   * Débite instantanément le solde disponible du portefeuille et rétablit le statut `ACTIVE`, les 0 % de commission et le sous-domaine.
 * **Historique des facturations du marchand :**
   * `GET /subscriptions/me`
+* **Rappels Préventifs WhatsApp & SMS (J-3 / J-1 avant date d'échéance) :**
+  * Automatiquement envoyés par le Cron bi-quotidien (09h00 et 21h00 GMT) pour prévenir le marchand de la fin de ses 30 jours d'essai gratuit ou de l'échéance mensuelle de son forfait.
+  * Message différencié si le solde Wallet est suffisant (rassurant, prélèvement automatique) ou insuffisant (invitation à recharger via Wave/OM avec calcul du montant manquant exact).
+  * Déclenchement manuel réservé Super-Admin / Tests : `POST /subscriptions/run-upcoming-reminders`.
 
 ---
 

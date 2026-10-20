@@ -99,4 +99,52 @@ describe('SubscriptionNotificationService — Alertes Dunning WhatsApp & SMS', (
     expect(res.whatsappMessage).toContain('3 % s\'applique');
     expect(res.smsMessage).toContain('Delai de grace expire');
   });
+
+  it('5. Doit formater le rappel préventif de fin d’essai gratuit avec solde suffisant (J-3)', async () => {
+    const payload = {
+      shopId: 'shop-123',
+      shopName: 'Keur Serigne Bi',
+      recipientPhone: '+221775556677',
+      plan: SubscriptionPlan.PRO,
+      amountFcfa: 5000,
+      availableBalanceFcfa: 12000,
+      dueDate: new Date('2026-11-20T00:00:00Z'),
+      isTrial: true,
+      daysRemaining: 3,
+    };
+
+    const res = await service.notifyUpcomingRenewalReminder(payload);
+
+    expect(res.channel).toBe('MULTI_CHANNEL');
+    expect(res.whatsappMessage).toContain("Fin d'Essai Gratuit");
+    expect(res.whatsappMessage).toContain('dans 3 jours');
+    expect(res.whatsappMessage).toContain('Votre solde est suffisant');
+    expect(res.whatsappMessage).toMatch(/5[\s\u202F]?000 FCFA/);
+    expect(res.smsMessage).toContain('Solde Wallet suffisant');
+    expect(res.whatsappDirectUrl).toContain('wa.me/221775556677');
+  });
+
+  it('6. Doit formater le rappel préventif de renouvellement avec solde insuffisant (demain)', async () => {
+    const payload = {
+      shopId: 'shop-456',
+      shopName: 'Saint-Louis Mode',
+      recipientPhone: '+221789998877',
+      plan: SubscriptionPlan.PREMIUM,
+      amountFcfa: 15000,
+      availableBalanceFcfa: 3500,
+      dueDate: new Date('2026-11-21T00:00:00Z'),
+      isTrial: false,
+      daysRemaining: 1,
+    };
+
+    const res = await service.notifyUpcomingRenewalReminder(payload);
+
+    expect(res.whatsappMessage).toContain('Renouvellement Forfait');
+    expect(res.whatsappMessage).toContain('demain');
+    expect(res.whatsappMessage).toMatch(/11[\s\u202F]?500 FCFA/);
+    expect(res.whatsappMessage).toContain('Wave ou Orange Money');
+    expect(res.smsMessage).toContain('Rechargez');
+    expect(res.whatsappDirectUrl).toContain('wa.me/221789998877');
+  });
 });
+

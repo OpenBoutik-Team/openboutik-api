@@ -104,6 +104,21 @@ export class SubscriptionsController {
     return this.subscriptionsService.processDueSubscriptions();
   }
 
+  @Post('run-upcoming-reminders')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN, Role.VENDOR)
+  @ApiBearerAuth('JWT-auth')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Déclencher manuellement l’envoi des rappels préventifs WhatsApp & SMS (Super-Admin / Tests)',
+    description:
+      'Scanne les boutiques arrivant à échéance dans les 72h et expédie les messages WhatsApp & SMS préventifs.',
+  })
+  async runUpcomingReminders() {
+    return this.subscriptionsService.sendUpcomingRenewalReminders(3);
+  }
+
   @Post('upgrade')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.VENDOR)

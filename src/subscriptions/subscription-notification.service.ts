@@ -14,6 +14,18 @@ export interface DunningNotificationPayload {
   nextPeriodEnd?: Date | null;
 }
 
+export interface UpcomingRenewalNotificationPayload {
+  shopId: string;
+  shopName: string;
+  recipientPhone: string;
+  plan: SubscriptionPlan;
+  amountFcfa: number;
+  availableBalanceFcfa: number;
+  dueDate: Date;
+  isTrial: boolean;
+  daysRemaining: number;
+}
+
 export interface DunningNotificationResult {
   channel: 'WHATSAPP' | 'SMS' | 'MULTI_CHANNEL';
   recipientPhone: string;
@@ -130,6 +142,66 @@ export class SubscriptionNotificationService {
     const smsMessage = `[OpenBoutik] Delai de grace expire pour "${payload.shopName}". Votre boutique est passee en mode Gratuit. Rechargez votre Wallet pour reactiver votre site dedie en 1 clic.`;
 
     return this.dispatch(payload.recipientPhone, whatsappMessage, smsMessage, 'DOWNGRADE_SUSPENDED');
+  }
+
+  /**
+   * 5. Notification préventive WhatsApp & SMS avant échéance (J-3 ou J-1)
+   * Prévient le commerçant avant la fin de ses 30j gratuits ou de son mois en cours
+   */
+  async notifyUpcomingRenewalReminder(
+    payload: UpcomingRenewalNotificationPayload,
+  ): Promise<DunningNotificationResult> {
+    const formattedDate = payload.dueDate.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    });
+
+    const isSufficient = payload.availableBalanceFcfa >= payload.amountFcfa;
+    const missing = Math.max(0, payload.amountFcfa - payload.availableBalanceFcfa);
+    const contextTitle = payload.isTrial ? "Fin d'Essai Gratuit" : 'Renouvellement Forfait';
+    const durationLabel =
+      payload.daysRemaining <= 1
+        ? 'demain'
+        : `dans ${payload.daysRemaining} jours`;
+
+    let whatsappMessage: string;
+    let smsMessage: string;
+
+    if (isSufficient) {
+      whatsappMessage =
+        `🔔 *[OpenBoutik] Rappel ${contextTitle} (${durationLabel})*\n\n` +
+        `Bonjour *${payload.shopName}*,\n` +
+        `Votre ${payload.isTrial ? "mois d'essai gratuit sur le" : 'abonnement au'} forfait *${payload.plan}* arrive à échéance le *${formattedDate}*.\n\n` +
+        `💰 Tarif mensuel : *${payload.amountFcfa.toLocaleString()} FCFA*\n` +
+        `💼 Solde disponible sur votre Wallet : *${payload.availableBalanceFcfa.toLocaleString()} FCFA*\n\n` +
+        `✅ *Votre solde est suffisant !*\n` +
+        `Le prélèvement de ${payload.amountFcfa.toLocaleString()} FCFA sera exécuté automatiquement le ${formattedDate}.\n` +
+        `Votre site dédié et votre commission 0 % resteront pleinement actifs sans interruption.\n` +
+        `_L'équipe OpenBoutik Sénégal_`;
+
+      smsMessage = `[OpenBoutik] Rappel: ${contextTitle} de "${payload.shopName}" (${payload.plan}) le ${formattedDate}. Solde Wallet suffisant (${payload.availableBalanceFcfa} FCFA). Aucun debit imprevu.`;
+    } else {
+      whatsappMessage =
+        `🔔 *[OpenBoutik] Rappel ${contextTitle} (${durationLabel})*\n\n` +
+        `Bonjour *${payload.shopName}*,\n` +
+        `Votre ${payload.isTrial ? "mois d'essai gratuit sur le" : 'abonnement au'} forfait *${payload.plan}* arrive à échéance le *${formattedDate}*.\n\n` +
+        `💰 Tarif mensuel : *${payload.amountFcfa.toLocaleString()} FCFA*\n` +
+        `💼 Solde actuel sur votre Wallet : *${payload.availableBalanceFcfa.toLocaleString()} FCFA*\n` +
+        `⚡ Montant à recharger : *${missing.toLocaleString()} FCFA*\n\n` +
+        `👉 *Action recommandée :*\n` +
+        `Pensez à recharger votre Wallet via Wave ou Orange Money depuis votre tableau de bord avant le ${formattedDate} pour conserver votre site dédié et vos avantages 0 %.\n` +
+        `_L'équipe OpenBoutik Sénégal_`;
+
+      smsMessage = `[OpenBoutik] Rappel: Echeance ${payload.plan} pour "${payload.shopName}" le ${formattedDate}. Solde actuel: ${payload.availableBalanceFcfa} FCFA. Rechargez ${missing} FCFA via Wave/OM pour eviter la suspension.`;
+    }
+
+    return this.dispatch(
+      payload.recipientPhone,
+      whatsappMessage,
+      smsMessage,
+      'UPCOMING_RENEWAL_REMINDER',
+    );
   }
 
   /**

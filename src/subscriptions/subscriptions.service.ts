@@ -530,6 +530,153 @@ export class SubscriptionsService {
   }
 
   /**
+   * Scan et expédition des rappels préventifs WhatsApp & SMS (J-3 / J-1 avant date d'échéance)
+   * Prévient les commerçants avant la fin de leur essai de 30j ou le renouvellement de leur forfait.
+   * Protégé contre le spam via un journal AuditLog (au maximum 1 rappel toutes les 48h).
+   */
+  async sendUpcomingRenewalReminders(daysAhead: number = 3) {
+    const now = new Date();
+    const futureLimit = new Date(
+      now.getTime() + daysAhead * 24 * 60 * 60 * 1000,
+    );
+
+    // 1. Détection des boutiques concernées (PRO et PREMIUM, en ACTIVE ou TRIALING)
+    const upcomingShops = await this.prisma.shop.findMany({
+      where: {
+        subscriptionPlan: { in: [SubscriptionPlan.PRO, SubscriptionPlan.PREMIUM] },
+        subscriptionStatus: {
+          in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING],
+        },
+        OR: [
+          {
+            subscriptionStatus: SubscriptionStatus.ACTIVE,
+            currentPeriodEnd: { gte: now, lte: futureLimit },
+          },
+          {
+            subscriptionStatus: SubscriptionStatus.TRIALING,
+            trialEndsAt: { gte: now, lte: futureLimit },
+          },
+        ],
+      },
+      include: {
+        wallet: true,
+        owner: true,
+      },
+    });
+
+    this.logger.log(
+      `Scan des rappels pré-échéance : ${upcomingShops.length} boutique(s) éligible(s) dans la fenêtre des ${daysAhead} prochains jours.`,
+    );
+
+    const results = [];
+    const minIntervalMs = 48 * 60 * 60 * 1000; // Au moins 48h entre 2 rappels
+
+    for (const shop of upcomingShops) {
+      try {
+        const isTrial = shop.subscriptionStatus === SubscriptionStatus.TRIALING;
+        const dueDate = isTrial ? shop.trialEndsAt : shop.currentPeriodEnd;
+
+        if (!dueDate) continue;
+
+        // Vérification anti-spam (AuditLog récent)
+        let recentAudit = null;
+        if (
+          this.prisma.auditLog &&
+          typeof this.prisma.auditLog.findFirst === 'function'
+        ) {
+          recentAudit = await this.prisma.auditLog.findFirst({
+            where: {
+              action: 'UPCOMING_RENEWAL_REMINDER_SENT',
+              entityType: 'SHOP',
+              entityId: shop.id,
+              createdAt: { gte: new Date(now.getTime() - minIntervalMs) },
+            },
+          });
+        }
+
+        if (recentAudit) {
+          this.logger.debug(
+            `Rappel déjà envoyé récemment pour la boutique "${shop.name}" (ID: ${shop.id}), ignoré.`,
+          );
+          continue;
+        }
+
+        const daysRemaining = Math.max(
+          1,
+          Math.ceil((dueDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)),
+        );
+        const planPriceFcfa =
+          shop.subscriptionPlan === SubscriptionPlan.PREMIUM ? 15000 : 5000;
+        const recipientPhone =
+          shop.whatsappNumber || (shop as any).owner?.phone || '';
+
+        if (!recipientPhone) {
+          this.logger.warn(
+            `Aucun numéro disponible pour notifier la boutique "${shop.name}".`,
+          );
+          continue;
+        }
+
+        const notification =
+          await this.notificationService.notifyUpcomingRenewalReminder({
+            shopId: shop.id,
+            shopName: shop.name,
+            recipientPhone,
+            plan: shop.subscriptionPlan,
+            amountFcfa: planPriceFcfa,
+            availableBalanceFcfa: shop.wallet?.availableBalanceFcfa || 0,
+            dueDate,
+            isTrial,
+            daysRemaining,
+          });
+
+        // Enregistrement de l'envoi dans l'audit log
+        if (
+          this.prisma.auditLog &&
+          typeof this.prisma.auditLog.create === 'function'
+        ) {
+          await this.prisma.auditLog.create({
+            data: {
+              userId: shop.ownerId,
+              action: 'UPCOMING_RENEWAL_REMINDER_SENT',
+              entityType: 'SHOP',
+              entityId: shop.id,
+              metadata: {
+                plan: shop.subscriptionPlan,
+                isTrial,
+                dueDate: dueDate.toISOString(),
+                amountFcfa: planPriceFcfa,
+                balanceFcfa: shop.wallet?.availableBalanceFcfa || 0,
+                recipientPhone,
+                daysRemaining,
+              },
+            },
+          });
+        }
+
+        results.push({
+          shopId: shop.id,
+          shopName: shop.name,
+          recipientPhone,
+          dueDate,
+          isTrial,
+          notification,
+        });
+      } catch (err: any) {
+        this.logger.error(
+          `Erreur lors de l'envoi du rappel préventif pour la boutique ${shop.id}: ${err.message}`,
+        );
+      }
+    }
+
+    return {
+      scannedTotal: upcomingShops.length,
+      remindersSent: results.length,
+      results,
+    };
+  }
+
+  /**
    * Auto-Sweep : règlement automatique de l'abonnement en souffrance dès qu'un versement crédite le Wallet
    */
   async autoSweepIfDue(shopId: string, tx: Prisma.TransactionClient) {

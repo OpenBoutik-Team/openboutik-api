@@ -269,9 +269,9 @@ Pour maximiser la conversion et la rétention sur le marché ouest-africain, 3 m
 
 ### B. Certification Qualité & Métriques Globales
 * **Compilation TypeScript NestJS :** **0 erreur (Code d'exit 0)** (`npm run build`).
-* **Suites de Tests Unitaires :** **77 tests passants (10 suites de tests)** (`npm run test`).
-* **Suites de Tests E2E Globales :** **82 tests passants (5 suites de tests)** (`npm run test:e2e`).
-* **Synchronisation Base de Données Cloud Clever Cloud :** Tables `price_negotiations`, `media_streams`, `stream_products`, `installment_plans`, `installment_payments` créées avec succès et synchronisées.
+* **Suites de Tests Unitaires :** **92 tests passants (12 suites de tests)** (`npm run test`).
+* **Suites de Tests E2E Globales :** **108 tests passants (6 suites de tests)** (`npm run test:e2e`).
+* **Synchronisation Base de Données Cloud Clever Cloud :** Tables `price_negotiations`, `media_streams`, `stream_products`, `installment_plans`, `installment_payments`, `shop_sponsors`, `subscription_billing_logs`, `used_trial_registries` créées et synchronisées.
 
 ---
 

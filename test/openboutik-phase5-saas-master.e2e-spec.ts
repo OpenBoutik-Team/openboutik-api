@@ -712,6 +712,15 @@ describe('OpenBoutik API — Certification E2E Phase 5 (SaaS Multi-Tenant, Store
           dbAuditLogs.push(a);
           return a;
         }),
+        findFirst: jest.fn(async ({ where }: any = {}) => {
+          return (
+            dbAuditLogs.find((a) => {
+              if (where?.action && a.action !== where.action) return false;
+              if (where?.entityId && a.entityId !== where.entityId) return false;
+              return true;
+            }) || null
+          );
+        }),
       },
       $transaction: jest.fn(async (cb) => {
         if (typeof cb === 'function') {
@@ -1047,6 +1056,28 @@ describe('OpenBoutik API — Certification E2E Phase 5 (SaaS Multi-Tenant, Store
         (l) => l.shopId === shopProId && l.status === BillingAttemptStatus.SUCCESS,
       );
       expect(successLog).toBeDefined();
+    });
+
+    it('6.2 Notification préventive WhatsApp & SMS : Rappel à J-3 avant fin de période', async () => {
+      const shop = dbShops.find((s) => s.id === shopProId);
+      // Période expire dans 2 jours (dans la fenêtre de 3 jours)
+      shop.currentPeriodEnd = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/subscriptions/run-upcoming-reminders')
+        .set('Authorization', `Bearer ${tokenSuperAdmin}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.remindersSent).toBeGreaterThanOrEqual(1);
+
+      // Vérifie l'enregistrement dans dbAuditLogs
+      const audit = dbAuditLogs.find(
+        (a) =>
+          a.entityId === shopProId &&
+          a.action === 'UPCOMING_RENEWAL_REMINDER_SENT',
+      );
+      expect(audit).toBeDefined();
+      expect(audit.metadata.plan).toBe(SubscriptionPlan.PRO);
     });
   });
 
