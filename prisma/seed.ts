@@ -4,6 +4,8 @@ import {
   PrismaClient,
   Role,
   SubscriptionPlan,
+  SubscriptionStatus,
+  BillingAttemptStatus,
   OrderStatus,
   EscrowStatus,
   PaymentProvider,
@@ -48,6 +50,9 @@ async function main() {
   await prisma.coupon.deleteMany();
   await prisma.product.deleteMany();
   await prisma.category.deleteMany();
+  await prisma.shopSponsor.deleteMany();
+  await prisma.subscriptionBillingLog.deleteMany();
+  await prisma.usedTrialRegistry.deleteMany();
   await prisma.walletPayout.deleteMany();
   await prisma.vendorWallet.deleteMany();
   await prisma.subscription.deleteMany();
@@ -112,6 +117,19 @@ async function main() {
       isVerified: true,
       isOnVacation: false,
       subscriptionPlan: SubscriptionPlan.PRO,
+      subdomainEnabled: true,
+      slogan: 'L’élégance sénégalaise authentique',
+      announcementBarEnabled: true,
+      announcementBarText: 'Livraison express Dakar en 2h | Tabaski 2026',
+      themeConfig: {
+        template: 'mode-teranga',
+        primaryColor: '#059669',
+        fontHeading: 'Playfair Display',
+        fontBody: 'Inter',
+        heroTitle: 'Collection Tabaski & Boubous d’Exception',
+        heroSubtitle: 'Bazin allemand riche et broderies artisanales faites main à la Médina.',
+        badgeHighlight: 'Artisanat Dakarois Certifié',
+      },
       wallet: {
         create: {
           escrowBalanceFcfa: 37000,
@@ -128,6 +146,55 @@ async function main() {
           paymentProvider: PaymentProvider.WAVE,
           providerReference: 'WAVE_SUB_PRO_20261001',
         },
+      },
+      sponsors: {
+        create: [
+          {
+            name: 'Wave Digital Finance',
+            logoUrl: 'https://storage.openboutik.sn/sponsors/wave-logo.png',
+            websiteUrl: 'https://wave.com',
+            description: 'Paiement instantané 0% frais de dépôt',
+            badgeText: 'Paiement Officiel',
+            displayOrder: 1,
+            isActive: true,
+          },
+          {
+            name: 'Orange Money Sénégal',
+            logoUrl: 'https://storage.openboutik.sn/sponsors/om-logo.png',
+            websiteUrl: 'https://orange.sn',
+            description: 'Paiement sécurisé par code QR et OTP',
+            badgeText: 'Partenaire Réseau',
+            displayOrder: 2,
+            isActive: true,
+          },
+          {
+            name: 'Getzner Textil Autriche',
+            logoUrl: 'https://storage.openboutik.sn/sponsors/getzner-logo.png',
+            websiteUrl: 'https://getzner.at',
+            description: 'Fournisseur exclusif de bazin riche brodé 100% coton',
+            badgeText: 'Matière Première Premium',
+            displayOrder: 3,
+            isActive: true,
+          },
+          {
+            name: 'Tiak-Tiak Express Dakar',
+            logoUrl: 'https://storage.openboutik.sn/sponsors/tiaktiak-logo.png',
+            websiteUrl: 'https://tiaktiak.sn',
+            description: 'Livraison express en moins de 2h à Dakar et banlieue',
+            badgeText: 'Logistique Express',
+            displayOrder: 4,
+            isActive: true,
+          },
+          {
+            name: 'Dakar Fashion Week 2026',
+            logoUrl: 'https://storage.openboutik.sn/sponsors/dfw-logo.png',
+            websiteUrl: 'https://dakarfashionweek.com',
+            description: 'Créateur sélectionné pour le défilé officiel',
+            badgeText: 'Label d’Excellence',
+            displayOrder: 5,
+            isActive: true,
+          },
+        ],
       },
     },
   });
@@ -290,6 +357,7 @@ async function main() {
       isVerified: true,
       isOnVacation: false,
       subscriptionPlan: SubscriptionPlan.FREE,
+      subdomainEnabled: false,
       wallet: {
         create: {
           escrowBalanceFcfa: 0,
@@ -328,6 +396,91 @@ async function main() {
       isPublished: true,
     },
   });
+
+  // 3b. Vendeur 3 : Cheikh Fall (Boutique Touba Chic - Forfait PRO en Dunning / Période de grâce 72h)
+  const vendor3 = await prisma.user.create({
+    data: {
+      email: 'cheikh.fall@toubachic.sn',
+      phone: '+221775551122',
+      fullName: 'Cheikh Fall',
+      passwordHash: defaultPasswordHash,
+      role: Role.VENDOR,
+      acceptedTermsAt: new Date(),
+    },
+  });
+
+  const nowMs = Date.now();
+  const pastDueStart = new Date(nowMs - 24 * 3600 * 1000); // 24h de retard (délai de grâce 72h -> reste 48h)
+  const graceEnd = new Date(pastDueStart.getTime() + 72 * 3600 * 1000);
+
+  const shop3 = await prisma.shop.create({
+    data: {
+      ownerId: vendor3.id,
+      name: 'Touba Chic',
+      slug: 'touba-chic',
+      description: 'Maroquinerie artisanale, sacs en cuir et babouches traditionnelles.',
+      mainCategory: 'Maroquinerie & Chaussures',
+      logoUrl: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400',
+      bannerUrl: 'https://images.unsplash.com/photo-1473187983305-f615310e7daa?w=1200',
+      primaryColor: '#D97706',
+      whatsappNumber: '+221775551122',
+      waveNumber: '+221775551122',
+      omNumber: '+221775551122',
+      payoutHolderName: 'Cheikh Fall',
+      onboardingStep: 5,
+      onboardingCompleted: true,
+      kycStatus: 'VERIFIED',
+      idCardNumber: '1 650 1988 09876',
+      idCardUrl: 'https://storage.openboutik.sn/kyc/cni-cheikh-fall.jpg',
+      kycSubmittedAt: new Date(),
+      kycVerifiedAt: new Date(),
+      address: 'Route de Rufisque, Thiaroye',
+      city: 'Dakar',
+      isVerified: true,
+      isOnVacation: false,
+      subscriptionPlan: SubscriptionPlan.PRO,
+      subscriptionStatus: SubscriptionStatus.PAST_DUE,
+      currentPeriodStart: new Date(nowMs - 31 * 24 * 3600 * 1000),
+      currentPeriodEnd: pastDueStart,
+      gracePeriodEndsAt: graceEnd,
+      billingRetryCount: 2,
+      lastBillingAttemptAt: new Date(nowMs - 4 * 3600 * 1000),
+      nextBillingRetryAt: new Date(nowMs + 8 * 3600 * 1000),
+      subdomainEnabled: true,
+      wallet: {
+        create: {
+          escrowBalanceFcfa: 0,
+          availableBalanceFcfa: 1200,
+          totalEarnedFcfa: 85000,
+        },
+      },
+      billingLogs: {
+        create: [
+          {
+            plan: SubscriptionPlan.PRO,
+            amountFcfa: 5000,
+            attemptNumber: 1,
+            status: BillingAttemptStatus.FAILED_INSUFFICIENT_FUNDS,
+            failureReason: 'Solde portefeuille insuffisant (1 200 FCFA vs 5 000 FCFA requis)',
+            walletBalanceBeforeFcfa: 1200,
+            walletBalanceAfterFcfa: 1200,
+            createdAt: pastDueStart,
+          },
+          {
+            plan: SubscriptionPlan.PRO,
+            amountFcfa: 5000,
+            attemptNumber: 2,
+            status: BillingAttemptStatus.FAILED_INSUFFICIENT_FUNDS,
+            failureReason: 'Relance 24h échouée : Solde toujours insuffisant',
+            walletBalanceBeforeFcfa: 1200,
+            walletBalanceAfterFcfa: 1200,
+            createdAt: new Date(nowMs - 4 * 3600 * 1000),
+          },
+        ],
+      },
+    },
+  });
+  console.log(`✅ Vendeur 3 (Dunning PAST_DUE test) créé : ${shop3.name} (${shop3.slug})`);
 
   // 4. Clients Acheteurs
   const client1 = await prisma.user.create({

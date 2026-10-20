@@ -4,7 +4,11 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Inject,
+  Optional,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateShopDto } from './dto/update-shop.dto';
 import { SaveOnboardingStepDto, SubmitKycDto, ReviewKycDto } from './dto/onboarding.dto';
@@ -24,7 +28,10 @@ import {
 
 @Injectable()
 export class ShopsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() @Inject(CACHE_MANAGER) private readonly cacheManager?: Cache,
+  ) {}
 
   /**
    * Vérification en temps réel de la disponibilité du slug URL (openboutik.com/nom-boutique)
@@ -663,6 +670,12 @@ export class ShopsService {
       }),
     ]);
 
+    await this.invalidateStorefrontCache(
+      updatedShop.id,
+      updatedShop.slug,
+      (shop as any).customDomain,
+    );
+
     return {
       id: updatedShop.id,
       name: updatedShop.name,
@@ -677,15 +690,46 @@ export class ShopsService {
   // ============================================================================
 
   /**
+  /**
+   * Helper d'invalidation sélective du cache vitrine
+   */
+  async invalidateStorefrontCache(...identifiers: (string | null | undefined)[]) {
+    if (!this.cacheManager) return;
+    try {
+      const cleanKeys = identifiers
+        .filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+        .map((id) => `storefront:${id.toLowerCase().trim()}`);
+
+      if (cleanKeys.length > 0) {
+        await Promise.allSettled(cleanKeys.map((key) => this.cacheManager!.del(key)));
+      }
+    } catch {
+      // Évite tout blocage en cas d'erreur de cache
+    }
+  }
+
+  /**
    * Endpoint de résolution vitrine pour Middleware Next.js & Subdomains
    */
   async getStorefront(rawIdentifier: string) {
     const identifier = rawIdentifier.toLowerCase().trim();
+    const cacheKey = `storefront:${identifier}`;
+
+    if (this.cacheManager) {
+      try {
+        const cached = await this.cacheManager.get(cacheKey);
+        if (cached) {
+          return cached;
+        }
+      } catch {
+        // Fallback silencieux vers la BDD en cas d'indisponibilité du cache
+      }
+    }
+
     const shop = await this.prisma.shop.findFirst({
       where: {
         OR: [
           { slug: identifier },
-          { subdomain: identifier },
           { customDomain: identifier },
         ],
         isActive: true,
@@ -698,7 +742,7 @@ export class ShopsService {
 
     // Si le sous-domaine est désactivé (Plan FREE ou rétrogradé CANCELED_DOWNGRADED)
     if (!shop.subdomainEnabled) {
-      return {
+      const redirectPayload = {
         subdomainActive: false,
         redirectToMarketplace: true,
         reason: 'PLAN_FREE_NO_SUBDOMAIN',
@@ -712,6 +756,14 @@ export class ShopsService {
           mainCategory: shop.mainCategory,
         },
       };
+
+      if (this.cacheManager) {
+        try {
+          await this.cacheManager.set(cacheKey, redirectPayload, 60000);
+        } catch {}
+      }
+
+      return redirectPayload;
     }
 
     const [sponsors, liveStream, featuredProducts, products] = await Promise.all([
@@ -739,7 +791,7 @@ export class ShopsService {
       }),
     ]);
 
-    return {
+    const result = {
       subdomainActive: true,
       themeConfig: shop.themeConfig,
       shop: {
@@ -767,6 +819,23 @@ export class ShopsService {
       featuredProducts,
       products,
     };
+
+    if (this.cacheManager) {
+      try {
+        await this.cacheManager.set(cacheKey, result, 60000);
+        if (shop.slug && shop.slug !== identifier) {
+          await this.cacheManager.set(`storefront:${shop.slug}`, result, 60000);
+        }
+        if (shop.id && shop.id !== identifier) {
+          await this.cacheManager.set(`storefront:${shop.id}`, result, 60000);
+        }
+        if (shop.customDomain && shop.customDomain !== identifier) {
+          await this.cacheManager.set(`storefront:${shop.customDomain}`, result, 60000);
+        }
+      } catch {}
+    }
+
+    return result;
   }
 
   /**
@@ -873,10 +942,20 @@ export class ShopsService {
       data.subdomainEnabled = false;
     }
 
-    return this.prisma.shop.update({
+    const updatedShop = await this.prisma.shop.update({
       where: { id: shop.id },
       data,
     });
+
+    await this.invalidateStorefrontCache(
+      shop.id,
+      shop.slug,
+      updatedShop.slug,
+      shop.customDomain,
+      updatedShop.customDomain,
+    );
+
+    return updatedShop;
   }
 
   /**
@@ -924,6 +1003,12 @@ export class ShopsService {
       where: { id: shop.id },
       data: updateData,
     });
+
+    await this.invalidateStorefrontCache(
+      shop.id,
+      shop.slug,
+      shop.customDomain,
+    );
 
     return {
       success: true,
@@ -994,7 +1079,7 @@ export class ShopsService {
       );
     }
 
-    return this.prisma.shopSponsor.create({
+    const sponsor = await this.prisma.shopSponsor.create({
       data: {
         shopId: shop.id,
         name: dto.name.trim(),
@@ -1006,6 +1091,14 @@ export class ShopsService {
         isActive: true,
       },
     });
+
+    await this.invalidateStorefrontCache(
+      shop.id,
+      shop.slug,
+      shop.customDomain,
+    );
+
+    return sponsor;
   }
 
   /**
@@ -1054,10 +1147,18 @@ export class ShopsService {
     if (dto.displayOrder !== undefined) data.displayOrder = dto.displayOrder;
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
 
-    return this.prisma.shopSponsor.update({
+    const updatedSponsor = await this.prisma.shopSponsor.update({
       where: { id: sponsorId },
       data,
     });
+
+    await this.invalidateStorefrontCache(
+      sponsor.shop.id,
+      sponsor.shop.slug,
+      sponsor.shop.customDomain,
+    );
+
+    return updatedSponsor;
   }
 
   /**
@@ -1082,6 +1183,12 @@ export class ShopsService {
     await this.prisma.shopSponsor.delete({
       where: { id: sponsorId },
     });
+
+    await this.invalidateStorefrontCache(
+      sponsor.shop.id,
+      sponsor.shop.slug,
+      sponsor.shop.customDomain,
+    );
 
     return { message: 'Sponsor supprimé avec succès' };
   }

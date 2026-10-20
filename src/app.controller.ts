@@ -11,12 +11,7 @@ export class AppController {
   }
 
   @Get('health')
-  getHealth() {
-    return {
-      status: 'ok',
-      service: 'openboutik-api',
-      uptime: process.uptime(),
-      timestamp: new Date().toISOString(),
-    };
+  async getHealth() {
+    return this.appService.getHealth();
   }
 }

@@ -19,8 +19,8 @@ describe('AppController', () => {
       expect(appController.getHello()).toBe('Hello World!');
     });
 
-    it('should return health status ok', () => {
-      const health = appController.getHealth();
+    it('should return health status ok', async () => {
+      const health = await appController.getHealth();
       expect(health.status).toBe('ok');
       expect(health.service).toBe('openboutik-api');
     });

@@ -4,7 +4,11 @@ import {
   BadRequestException,
   ForbiddenException,
   Logger,
+  Inject,
+  Optional,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   SubscriptionPlan,
@@ -32,9 +36,25 @@ export class SubscriptionsService {
   constructor(
     private readonly prisma: PrismaService,
     notificationService?: SubscriptionNotificationService,
+    @Optional() @Inject(CACHE_MANAGER) private readonly cacheManager?: Cache,
   ) {
     this.notificationService =
       notificationService ?? new SubscriptionNotificationService();
+  }
+
+  private async invalidateStorefrontCache(...identifiers: (string | null | undefined)[]) {
+    if (!this.cacheManager) return;
+    try {
+      const cleanKeys = identifiers
+        .filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+        .map((id) => `storefront:${id.toLowerCase().trim()}`);
+
+      if (cleanKeys.length > 0) {
+        await Promise.allSettled(cleanKeys.map((key) => this.cacheManager!.del(key)));
+      }
+    } catch {
+      // Non-blocking
+    }
   }
 
   /**
@@ -201,6 +221,12 @@ export class SubscriptionsService {
         return updatedShop;
       },
       { maxWait: 20000, timeout: 30000 },
+    );
+
+    await this.invalidateStorefrontCache(
+      result.id,
+      result.slug,
+      (result as any).customDomain,
     );
 
     return {
@@ -462,13 +488,25 @@ export class SubscriptionsService {
     };
 
     if (existingTx) {
-      return execute(existingTx);
+      const res = await execute(existingTx);
+      if (res?.shop) {
+        await this.invalidateStorefrontCache(res.shop.id, res.shop.slug, (res.shop as any).customDomain);
+      } else {
+        await this.invalidateStorefrontCache(shopId);
+      }
+      return res;
     }
 
-    return this.prisma.$transaction(execute, {
+    const res = await this.prisma.$transaction(execute, {
       maxWait: 20000,
       timeout: 30000,
     });
+    if (res?.shop) {
+      await this.invalidateStorefrontCache(res.shop.id, res.shop.slug, (res.shop as any).customDomain);
+    } else {
+      await this.invalidateStorefrontCache(shopId);
+    }
+    return res;
   }
 
   /**
@@ -797,6 +835,12 @@ export class SubscriptionsService {
         return updatedShop;
       },
       { maxWait: 20000, timeout: 30000 },
+    );
+
+    await this.invalidateStorefrontCache(
+      result.id,
+      result.slug,
+      (result as any).customDomain,
     );
 
     return {
