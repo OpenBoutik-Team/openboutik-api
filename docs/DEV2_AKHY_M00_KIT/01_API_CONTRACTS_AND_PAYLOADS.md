@@ -1,43 +1,96 @@
-# 📡 CONTRATS D'API & PAYLOADS — PÔLE DEV 2 (@akhy-m00)
+# 📡 CONTRATS D'API & PAYLOADS — PÔLE DEV 2 (@akhy-m00 — `openboutik-seller` • Port 3001)
 **Base URL Locale :** `http://localhost:4000/api/v1`  
 **Base URL Production :** `https://openboutik-api.onrender.com/api/v1`  
-**Format global :** `application/json` avec enveloppe standard `{ "success": boolean, "data": ... }`  
-**Authentification obligatoire :** `Authorization: Bearer <accessToken>` avec rôle `VENDOR` sur tous les endpoints marchands.
+**Format global :** `application/json` avec enveloppe standard `{ "success": boolean, "data": ..., "message": string, "timestamp": string }`  
+**Rôles couverts par `openboutik-seller` :** `VENDOR` (Espace Marchand SaaS & Store Builder) et `SUPER_ADMIN` (Back-Office Administration & Arbitrage).
 
 ---
 
-## 1. STORE BUILDER & THÈME DYNAMIQUE
+## 1. AUTHENTIFICATION VENDEUR & ONBOARDING EN 5 ÉTAPES (`VENDOR`)
 
-### `GET /shops/me/theme`
-Récupère la configuration exacte du thème enregistrée pour la boutique du marchand connecté.
-
-- **Headers :** `Authorization: Bearer <vendeur_token>`
-- **Réponse `200 OK` :**
+### `POST /auth/register/vendor`
+Création de compte marchand en transaction ACID (User + Shop + VendorWallet).
+- **Payload :**
 ```json
 {
-  "success": true,
-  "data": {
-    "themeConfig": {
-      "primaryColor": "#10B981",
-      "secondaryColor": "#0F172A",
-      "fontFamily": "Inter",
-      "bannerStyle": "FULL_WIDTH",
-      "slogan": "L'élégance dakaroise à portée de clic",
-      "announcementBarText": "Livraison Tiak-Tiak offerte à Dakar dès 35 000 FCFA",
-      "announcementBarEnabled": true,
-      "wakhaleEnabled": true,
-      "showSponsors": true,
-      "layoutGridColumns": 3
-    }
-  }
+  "phone": "+221771234567",
+  "fullName": "Moussa Diop",
+  "email": "moussa.diop@terangamode.sn",
+  "password": "Passer123!",
+  "acceptTerms": true
+}
+```
+*(Rejet `400 Bad Request` si `acceptTerms` est `false`).*
+
+### `GET /shops/check-slug/:slug`
+Vérifie en temps réel si le nom de sous-domaine/slug est disponible et bloque les mots système réservés (`admin`, `api`, `www`, `checkout`, etc.).
+- **Réponse `200 OK` :** `{ "available": true, "slug": "teranga-mode" }` ou `{ "available": false, "suggestion": "teranga-mode-dakar" }`.
+
+### `GET /shops/me/onboarding` & `PATCH /shops/me/onboarding/step/:step`
+- `GET /shops/me/onboarding` : Renvoie `onboardingStep` (1..5), `onboardingCompleted` et la `checklist` (`hasCompletedOnboarding`, `hasAddedFirstProduct`, `isKycVerified`).
+- `PATCH /shops/me/onboarding/step/:step` :
+  - **Étape 1 (Identité) :** `{ "name": "Teranga Mode", "slug": "teranga-mode", "mainCategory": "Mode", "city": "Dakar", "description": "..." }`
+  - **Étape 2 (Apparence - skippable) :** `{ "primaryColor": "#10B981", "logoUrl": "https://...", "bannerUrl": "https://..." }` ou `{ "skip": true }`
+  - **Étape 3 (WhatsApp) :** `{ "whatsappNumber": "+221771234567" }`
+  - **Étape 4 (Paiements Séquestre) :** `{ "waveNumber": "+221771234567", "omNumber": "+221761234567", "payoutHolderName": "Moussa Diop" }` *(active la boutique)*
+  - **Étape 5 (Plan SaaS - skippable) :** `{ "plan": "FREE" }` (ou `"PRO"`, `"PREMIUM"`).
+
+---
+
+## 2. GESTION DU CATALOGUE, DES VARIANTES & DES STOCKS (`VENDOR`)
+
+### `POST /products` • `PATCH /products/:id` • `DELETE /products/:id`
+- **Payload `POST /products` :**
+```json
+{
+  "name": "Boubou Bazin Riche Brodé",
+  "description": "Broderie traditionnelle cousue main à la Médina",
+  "priceFcfa": 35000,
+  "compareAtPriceFcfa": 45000,
+  "stock": 12,
+  "lowStockThreshold": 3,
+  "categoryId": "uuid-categorie",
+  "images": ["https://storage.openboutik.sn/products/boubou1.jpg"]
 }
 ```
 
-### `PUT /shops/me/theme`
-Sauvegarde sans perte le JSON généré par l'éditeur visuel du Store Builder. Met automatiquement à jour la colonne `themeConfig` et synchronise les attributs de marque de la boutique.
+### `PATCH /products/:id/stock`
+Ajustement rapide du stock physique : `{ "stock": 20 }`.
 
-- **Headers :** `Authorization: Bearer <vendeur_token>`
-- **Payload :**
+### `PATCH /products/me/layout`
+Ordonner les produits sur la vitrine (Store Builder) :
+```json
+{
+  "items": [
+    { "productId": "uuid-prod-1", "displayOrder": 1, "isFeatured": true },
+    { "productId": "uuid-prod-2", "displayOrder": 2, "isFeatured": false }
+  ]
+}
+```
+
+### `POST /products/:id/variants` • `PATCH /products/variants/:variantId` • `DELETE /products/variants/:variantId`
+- **Payload `POST /products/:id/variants` :**
+```json
+{
+  "sku": "BOUBOU-BN-XL",
+  "priceFcfa": 35000,
+  "compareAtPriceFcfa": 40000,
+  "stock": 6,
+  "attributes": { "taille": "XL", "couleur": "Bleu Nuit" }
+}
+```
+
+### `GET /products/me/low-stock` & `POST /categories`
+- `GET /products/me/low-stock` : Liste tous les produits et variantes dont `stock <= lowStockThreshold`.
+- `POST /categories` : Créer une catégorie personnalisée (`{ "name": "Collection Tabaski", "description": "..." }`).
+
+---
+
+## 3. STORE BUILDER, ABONNEMENTS SAAS, ESSAI 30J, DUNNING 72H & SPONSORS (`VENDOR`)
+
+### `GET /shops/me/theme` & `PUT /shops/me/theme`
+Charge et sauvegarde sans perte le JSON complet de l'éditeur Store Builder (`themeConfig`), tout en synchronisant automatiquement les colonnes SQL de la boutique (`primaryColor`, `bannerUrl`, `logoUrl`, `faviconUrl`, `slogan`, `announcementBarText`, `announcementBarEnabled`).
+- **Payload `PUT /shops/me/theme` :**
 ```json
 {
   "primaryColor": "#059669",
@@ -48,295 +101,112 @@ Sauvegarde sans perte le JSON généré par l'éditeur visuel du Store Builder. 
   "logoUrl": "https://storage.openboutik.sn/logos/teranga-logo.png",
   "faviconUrl": "https://storage.openboutik.sn/favicons/teranga-icon.png",
   "slogan": "La référence du prêt-à-porter sénégalais chic",
-  "announcementBarText": "Promo Tabaski : -20 % sur toute la collection avec le code TABASKI20",
+  "announcementBarText": "Livraison Tiak-Tiak offerte dès 35 000 FCFA",
   "announcementBarEnabled": true,
   "wakhaleEnabled": true,
-  "showSponsors": true
+  "showSponsors": true,
+  "layoutGridColumns": 3
 }
 ```
-- **Réponse `200 OK` :**
-```json
-{
-  "success": true,
-  "message": "Configuration du thème enregistrée avec succès",
-  "data": {
-    "themeConfig": { ... }
-  }
-}
-```
-
----
-
-## 2. ABONNEMENTS SAAS, ESSAI 30 JOURS & DUNNING
-
-### `GET /subscriptions/plans`
-Récupère la grille tarifaire officielle des 3 forfaits.
-
-- **Authentification :** Publique (aucun header requis)
-- **Réponse `200 OK` :**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "plan": "FREE",
-      "name": "Forfait Gratuit",
-      "priceFcfa": 0,
-      "commissionRate": 3.0,
-      "subdomainEnabled": false,
-      "features": [
-        "Vente sur la Marketplace centrale OpenBoutik",
-        "Commission standard de 3.0 % par commande livrée",
-        "Paiements sécurisés par Séquestre Wave et Orange Money",
-        "Notifications par WhatsApp et SMS",
-        "Sous-domaine dédié non disponible"
-      ]
-    },
-    {
-      "plan": "PRO",
-      "name": "Forfait Professionnel",
-      "priceFcfa": 5000,
-      "commissionRate": 0.0,
-      "subdomainEnabled": true,
-      "features": [
-        "0.0 % de commission sur toutes vos ventes (0 FCFA prélevé)",
-        "Site web dédié prêt à l'emploi (ex: https://maboutique.openboutik.sn)",
-        "Store Builder complet (personnalisation couleurs, logo, bannières)",
-        "Module de négociation de prix « Wakhale » numérique",
-        "Affichage de 5 sponsors / partenaires sur votre vitrine",
-        "Bouton de contact direct WhatsApp"
-      ]
-    },
-    {
-      "plan": "PREMIUM",
-      "name": "Forfait Élite & Marque",
-      "priceFcfa": 15000,
-      "commissionRate": 0.0,
-      "subdomainEnabled": true,
-      "features": [
-        "Tous les avantages du Forfait PRO (0 % de commission)",
-        "Branchement de votre propre nom de domaine personnalisé (ex: https://maboutique.sn)",
-        "Paiement fractionné en 3 ou 4 fois (BNPL) offert à vos clients",
-        "Sponsors et partenaires illimités",
-        "Badge Vendeur Vérifié Or & Mise en avant prioritaire",
-        "Support VIP WhatsApp 24/7 & Conciergerie technique"
-      ]
-    }
-  ]
-}
-```
-
-### `POST /subscriptions/start-trial`
-Active immédiatement les 30 jours d'essai gratuit sur le forfait PRO ou PREMIUM.
-
-- **Headers :** `Authorization: Bearer <vendeur_token>`
-- **Payload :**
-```json
-{
-  "plan": "PRO"
-}
-```
-- **Réponse `200 OK` (Succès) :**
-```json
-{
-  "success": true,
-  "message": "Félicitations ! Votre mois d’essai gratuit sur le forfait PRO est activé avec succès jusqu’au 20 novembre 2026.",
-  "data": {
-    "subscriptionPlan": "PRO",
-    "subscriptionStatus": "TRIALING",
-    "subdomainEnabled": true,
-    "trialEndsAt": "2026-11-20T00:00:00.000Z"
-  }
-}
-```
-- **Réponse `403 Forbidden` (Détection Anti-Fraude `used_trial_registries`) :**
-```json
-{
-  "statusCode": 403,
-  "message": "Vous avez déjà bénéficié de votre mois d’essai gratuit sur OpenBoutik (numéro ou compte déjà enregistré).",
-  "error": "Forbidden"
-}
-```
-
-### `POST /subscriptions/reactivate`
-Réactive ou change de forfait immédiatement depuis le solde disponible du Wallet marchand.
-
-- **Headers :** `Authorization: Bearer <vendeur_token>`
-- **Payload :** `{ "plan": "PRO" }` ou `{ "plan": "PREMIUM" }`
-- **Réponse `200 OK` :** Débite le Wallet, réactive instantanément le sous-domaine et remet le statut à `ACTIVE`.
-- **Réponse `400 Bad Request` :** Si le solde Wallet est inférieur au prix du forfait.
-
----
-
-## 3. TABLEAU DE BORD 360° VENDEUR & BANDEAU DUNNING
 
 ### `GET /shops/me/dashboard-360`
-Consolidation de toutes les données du dashboard marchand en une seule requête optimisée.
+Consolidation complète du Dashboard Marchand 360° en une seule requête :
+- `shop` : identité, statut KYC, mode vacances.
+- `subscriptionAndDomain` : forfait (`FREE`, `PRO`, `PREMIUM`), statut (`TRIALING`, `ACTIVE`, `PAST_DUE`), `subdomainUrl`, et **`dunningAlert`** (`isPastDue`, `retryCount`, `gracePeriodEndsAt`, `warningMessage`).
+- `wallet` : `availableBalanceFcfa`, `escrowBalanceFcfa`, `kycStatus`.
+- `salesMetrics` : `totalCommissionSavedFcfa`, `totalRevenueFcfa`, `ordersCount`, `salesByChannel`.
+- `inventoryHealth` : `totalProducts`, `lowStockAlertsCount`, `outOfStockCount`.
+- `topProducts` : top ventes avec vues et volume.
 
-- **Headers :** `Authorization: Bearer <vendeur_token>`
-- **Réponse `200 OK` :**
-```json
-{
-  "success": true,
-  "data": {
-    "shop": {
-      "id": "shop-1234",
-      "name": "Dakar Chic",
-      "slug": "dakar-chic",
-      "logoUrl": "https://storage.openboutik.sn/logos/dakar.png",
-      "isVerified": true,
-      "kycStatus": "VERIFIED"
-    },
-    "subscriptionAndDomain": {
-      "plan": "PRO",
-      "status": "PAST_DUE",
-      "commissionRate": 0.0,
-      "subdomain": "dakar-chic",
-      "subdomainUrl": "https://dakar-chic.openboutik.sn",
-      "subdomainEnabled": true,
-      "customDomain": null,
-      "customDomainVerified": false,
-      "dunningAlert": {
-        "isPastDue": true,
-        "subscriptionStatus": "PAST_DUE",
-        "retryCount": 2,
-        "gracePeriodEndsAt": "2026-10-23T14:00:00.000Z",
-        "warningMessage": "Prélèvement de votre abonnement PRO en attente (tentative 2/6). Période de grâce active : vos avantages et votre site dédié restent actifs jusqu'au 23 octobre à 14h00. Veuillez recharger votre Wallet via Wave ou Orange Money."
-      }
-    },
-    "wallet": {
-      "availableBalanceFcfa": 1500,
-      "escrowBalanceFcfa": 65000,
-      "kycStatus": "VERIFIED"
-    },
-    "salesMetrics": {
-      "totalCommissionSavedFcfa": 42000,
-      "totalRevenueFcfa": 1400000,
-      "ordersCount": 28,
-      "salesByChannel": {
-        "marketplaceRevenueFcfa": 400000,
-        "subdomainRevenueFcfa": 1000000,
-        "customDomainRevenueFcfa": 0
-      }
-    },
-    "inventoryHealth": {
-      "totalProducts": 15,
-      "lowStockAlertsCount": 2,
-      "outOfStockCount": 0
-    },
-    "topProducts": [
-      {
-        "id": "prod-1",
-        "name": "Boubou Grand Bassin Brodé",
-        "priceFcfa": 35000,
-        "viewsCount": 184,
-        "salesVolume": 12
-      }
-    ]
-  }
-}
-```
+### `GET /subscriptions/plans` • `POST /subscriptions/start-trial` • `POST /subscriptions/reactivate` • `POST /subscriptions/upgrade`
+- `GET /subscriptions/plans` : Grille officielle (`FREE` 0 FCFA / 3 %, `PRO` 5 000 FCFA / 0 % + sous-domaine, `PREMIUM` 15 000 FCFA / 0 % + domaine custom + BNPL).
+- `POST /subscriptions/start-trial` : `{ "plan": "PRO" }` ou `"PREMIUM"`. Active 30 jours gratuits à 0 % de commission (ou renvoie `403 Forbidden` si déjà utilisé via `UsedTrialRegistry`).
+- `POST /subscriptions/reactivate` : `{ "plan": "PRO" }` ou `"PREMIUM"`. Débite le Wallet marchand et rétablit immédiatement `ACTIVE` + sous-domaine.
+
+### `GET /shops/me/sponsors` • `POST /shops/me/sponsors` • `PATCH /shops/me/sponsors/:sponsorId` • `DELETE /shops/me/sponsors/:sponsorId`
+Gestion des partenaires affichés sur la vitrine (Plan FREE : interdit `403`, Plan PRO : max 5 sponsors, Plan PREMIUM : illimité).
 
 ---
 
-## 4. GESTION DES SPONSORS & PARTENAIRES (`shop_sponsors`)
+## 4. COMMANDES VENDEUR, LIVRAISON TIAK-TIAK (CODE OTP), MÉMOS & REÇUS PDF (`VENDOR`)
 
-### `GET /shops/me/sponsors`
-Lister les sponsors de la boutique.
-
-- **Réponse `200 OK` :**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "sp-1",
-      "name": "Mixx by Yas",
-      "logoUrl": "https://storage.openboutik.sn/sponsors/mixx.png",
-      "websiteUrl": "https://mixx.sn",
-      "description": "Partenaire officiel télécom",
-      "badgeText": "Partenaire Premium",
-      "displayOrder": 1,
-      "isActive": true
-    }
-  ]
-}
-```
-
-### `POST /shops/me/sponsors`
-Ajouter un sponsor.
-
-- **Payload :**
-```json
-{
-  "name": "Wave Sénégal",
-  "logoUrl": "https://storage.openboutik.sn/sponsors/wave.png",
-  "websiteUrl": "https://wave.com",
-  "description": "Paiement 0 % frais",
-  "badgeText": "Partenaire Paiement",
-  "displayOrder": 2
-}
-```
-- **Règles :** Plan FREE : interdit (`403 Forbidden`). Plan PRO : max 5 sponsors. Plan PREMIUM : illimité.
-
-### `PATCH /shops/me/sponsors/:sponsorId`
-Mise à jour d'un sponsor existant.
-
-### `DELETE /shops/me/sponsors/:sponsorId`
-Suppression d'un sponsor.
+- **`GET /orders/vendor/me?status=PAID_ESCROW` :** Liste des commandes reçues par la boutique.
+- **`PATCH /orders/:id/prepare` :** Passe la commande en `PREPARING`.
+- **`PATCH /orders/:id/ship` :** Passe la commande en `SHIPPED_TIAK_TIAK` et lance le compte à rebours d'auto-déblocage de 24h.
+- **`POST /orders/:id/confirm-delivery` :** Validation par saisie du code OTP à 6 chiffres fourni par le client :
+  ```json
+  { "confirmationCode": "482910" }
+  ```
+  *Effet immédiat :* Débloque le séquestre vers `availableBalanceFcfa` et exécute l'Auto-Sweep si un abonnement était en `PAST_DUE`.
+- **`POST /orders/:id/notes` & `GET /orders/:id/notes` :** Ajout et lecture des mémos internes confidentiels vendeur (`{ "content": "Client appelé, livraison prévue à 16h" }`).
+- **`GET /orders/:id/invoice` :** Téléchargement du reçu PDF officiel.
 
 ---
 
-## 5. TRAITEMENT DES COMMANDES & LIVRAISON TIAK-TIAK
+## 5. PORTEFEUILLE, RECHARGE, RETRAITS & KYC MARCHAND (`VENDOR`)
 
-### `GET /orders/vendor/me`
-Liste des commandes de la boutique (`?status=PAID_ESCROW` pour les commandes à préparer).
-
-### `PATCH /orders/:id/prepare`
-Passe la commande à l'état `PREPARING` pour avertir le client que le colis est en cours de conditionnement.
-
-### `PATCH /orders/:id/ship`
-Passe la commande à l'état `SHIPPED_TIAK_TIAK`.
-*Déclenche automatiquement le compte à rebours de sécurité de 24h avant déblocage automatique.*
-
-### `POST /orders/:id/confirm-delivery` (Validation par Code OTP)
-Pour le commerçant ou le coursier lors de la remise en main propre.
-
-- **Payload :**
-```json
-{
-  "confirmationCode": "482910"
-}
-```
-- **Réponse `200 OK` :** Débloque immédiatement les fonds vers le Wallet du vendeur et déclenche l'Auto-Sweep si la boutique a un abonnement impayé.
+- **`GET /wallets/me` :** Solde disponible (`availableBalanceFcfa`), solde séquestré (`escrowBalanceFcfa`), statut KYC et historique des retraits.
+- **`POST /wallets/me/topup` :** Recharger son Wallet marchand (`{ "amountFcfa": 5000, "provider": "WAVE", "phoneNumber": "+221771234567" }`).
+- **`POST /shops/me/kyc` :** Soumettre sa CNI sénégalaise (`{ "idCardNumber": "1 758 1990 04821", "idCardUrl": "https://..." }`).
+- **`POST /wallets/payout` :** Demander un virement vers Wave ou Orange Money (`{ "amountFcfa": 25000, "provider": "WAVE", "recipientPhone": "+221771234567" }`). Rejeté avec `403 Forbidden` si `kycStatus !== 'VERIFIED'`.
 
 ---
 
-## 6. PORTEFEUILLE & RETRAITS KYC
+## 6. MARKETING, MODE VACANCES, WAKHALE VENDEUR, LIVE SHOPPING & ANALYTICS (`VENDOR`)
 
-### `GET /wallets/me`
-Solde disponible, solde sous séquestre et statut KYC.
+- **Mode Vacances :** `PATCH /shops/me/vacation` avec `{ "isOnVacation": true, "vacationMessage": "Boutique fermée pour le Magal jusqu'à lundi" }`.
+- **Codes Promo :** `POST /coupons` (`{ "code": "TABASKI20", "type": "PERCENTAGE", "value": 20, "minOrderAmountFcfa": 15000, "maxUses": 100, "expiresAt": "2026-12-31T23:59:59Z" }`), `GET /coupons`, `PATCH /coupons/:id`, `DELETE /coupons/:id`.
+- **Réponse aux Avis & Analytics :** `PATCH /reviews/:id/reply` (`{ "reply": "Merci pour votre confiance !" }`) et `GET /analytics/top-products` (Top 5 mensuel avec CA, unités vendues, vues et taux de conversion).
+- **Wakhale Vendeur :**
+  - `GET /negotiations/shop` : Offres de prix reçues des acheteurs.
+  - `PATCH /negotiations/:id/respond` :
+    - Accepter : `{ "action": "ACCEPT" }` (génère automatiquement le coupon `WAKHALE-XXXXXX` pour l'acheteur).
+    - Contre-offre : `{ "action": "COUNTER_OFFER", "counterPriceFcfa": 31000 }`.
+    - Refuser : `{ "action": "REJECT" }`.
+- **Live Shopping Vendeur :**
+  - `POST /streams` : Créer un Live ou une vidéo courte avec `productIds`.
+  - `PATCH /streams/:id/status` : `{ "status": "LIVE" }` ou `{ "status": "ENDED" }`.
+  - `PATCH /streams/:id/pin-product/:productId` : Épingle instantanément un produit en pop-up sur les écrans de tous les spectateurs connectés en WebSocket.
+  - `DELETE /streams/:id` : Supprimer un flux.
+- **Upload Direct Cloud :** `POST /storage/upload-ticket` (pour photos produits, bannières, vidéos et CNI KYC).
 
-### `POST /wallets/payout`
-Demande de virement vers Wave ou Orange Money.
+---
 
-- **Payload :**
+## 7. BACK-OFFICE SUPER-ADMIN (`SUPER_ADMIN` — Routes `/admin/*`)
+
+### A. Supervision Globale du Séquestre & des Retraits
+- **`GET /escrow/overview` :** Retourne la trésorerie globale en temps réel (total bloqué `HELD_IN_ESCROW`, total gelé `FROZEN_BY_DISPUTE`, total libéré `RELEASED_TO_VENDOR`, commissions perçues).
+- **`POST /escrow/auto-release` :** Déclenche manuellement le filet de sécurité 24h pour libérer les commandes expédiées non contestées.
+- **`GET /wallets/admin/payouts?status=PENDING` :** Liste et contrôle de tous les décaissements Mobile Money de la plateforme.
+
+### B. Arbitrage Officiel des Litiges Séquestre
+- **`GET /disputes?status=OPEN` :** Liste complète des litiges ouverts avec preuves et détails commande.
+- **`GET /disputes/:id` :** Détail complet d'un dossier de litige.
+- **`GET /admin/messages/order/:orderId` :** Historique intégral des messages échangés entre l'acheteur et le vendeur sur la commande en litige.
+- **`POST /disputes/:id/arbitrate` :**
 ```json
 {
-  "amountFcfa": 50000,
-  "provider": "WAVE",
-  "recipientPhone": "+221771234567"
+  "decision": "REFUND_CLIENT",
+  "resolutionNotes": "Preuve photo concluante : article endommagé, remboursement intégral du client via Wave."
 }
 ```
-- **Règle :** Rejeté avec `403 Forbidden` si le KYC n'est pas `VERIFIED`.
+*(Valeurs de `decision` : `"REFUND_CLIENT"` ou `"RELEASE_VENDOR"`).*
 
-### `POST /shops/me/kyc`
-Soumission du scan CNI sénégalaise pour instruction.
-
-- **Payload :**
+### C. Validation KYC Marchands, Certification Boutiques & KYC BNPL Acheteurs
+- **`GET /storage/secure-view?fileUrl=https://...` :** Génère une URL éphémère signée (valable 15 minutes) pour examiner la CNI d'un vendeur ou d'un client.
+- **`PATCH /shops/admin/:id/kyc` :** Valider ou rejeter le dossier KYC d'une boutique :
 ```json
 {
-  "idCardNumber": "1 758 1990 04821",
-  "idCardUrl": "https://storage.openboutik.sn/kyc/cni-recto-verso.jpg"
+  "status": "VERIFIED",
+  "verifyShopBadge": true,
+  "adminNotes": "CNI sénégalaise conforme au titulaire du compte Wave."
+}
+```
+- **`PATCH /shops/:id/verify` :** Attribuer ou retirer le badge certifié (`{ "isVerified": true, "notes": "Vérification terrain validée" }`).
+- **`PATCH /bnpl/admin/kyc/:targetUserId` :** Valider ou rejeter le KYC d'un acheteur pour le paiement fractionné BNPL 3x/4x :
+```json
+{
+  "status": "VERIFIED",
+  "rejectionReason": "Document valide"
 }
 ```

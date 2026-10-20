@@ -45,9 +45,9 @@
 
 | Rôle | Développeur | GitHub | Dépôt Assigné & Périmètre |
 | :--- | :--- | :--- | :--- |
-| **Lead Backend Engineer (Dev 3)** | **Bécaye Doumbouya** | [@HYPNOTYZEDCHART](https://github.com/HYPNOTYZEDCHART) | [`openboutik-api`](https://github.com/OpenBoutik-Team/openboutik-api) — Core Engine, Séquestre, Wakhale, Live Shopping, BNPL, DB |
-| **Lead Frontend Marketplace (Dev 1)** | **El hadji Mor** | [@akhy-m00](https://github.com/akhy-m00) | [`openboutik-marketplace`](https://github.com/OpenBoutik-Team/openboutik-marketplace) (Port 3000) — Tunnel Achat, Catalogue, Profil Client |
-| **Lead Frontend Seller (Dev 2)** | **Mansour** | [@mansss7](https://github.com/mansss7) | [`openboutik-seller`](https://github.com/OpenBoutik-Team/openboutik-seller) (Port 3001) — Backoffice Marchand, Gestion Stocks, Analytics |
+| **Lead Backend Engineer (Dev 3)** | **Bécaye Doumbouya** | [@HYPNOTYZEDCHART](https://github.com/HYPNOTYZEDCHART) | [`openboutik-api`](https://github.com/OpenBoutik-Team/openboutik-api) (Port 4000) — Core Engine, Séquestre, Wakhale, Live Shopping, BNPL, DB |
+| **Lead Frontend Marketplace (Dev 1)** | **Mansour** | [@mansss7](https://github.com/mansss7) | [`openboutik-marketplace`](https://github.com/OpenBoutik-Team/openboutik-marketplace) (Port 3000) — Vitrines Multi-Tenant, Catalogue, Panier, Checkout, Espace Acheteur |
+| **Lead Frontend Seller & Admin (Dev 2)** | **El hadji Mor** | [@akhy-m00](https://github.com/akhy-m00) | [`openboutik-seller`](https://github.com/OpenBoutik-Team/openboutik-seller) (Port 3001) — Front Marchand SaaS, Store Builder, Gestion Stocks & Back-Office Super-Admin |
 
 ---
 
@@ -55,8 +55,8 @@
 
 ```mermaid
 graph TD
-    Client[👤 Acheteur - Marketplace Next.js :3000] -->|REST & WebSockets| API[🦁 OpenBoutik API NestJS :3002]
-    Seller[🏪 Vendeur - Backoffice Next.js :3001] -->|REST & WebSockets| API
+    Client[👤 Acheteur - Marketplace Next.js :3000] -->|REST & WebSockets| API[🦁 OpenBoutik API NestJS :4000]
+    Seller[🏪 Vendeur & Super-Admin - Next.js :3001] -->|REST & WebSockets| API
     
     subgraph Core Engine [Pôle Backend - @HYPNOTYZEDCHART]
         API --> Escrow[🛡️ Séquestre Financier Wave/OM]
@@ -84,7 +84,7 @@ graph TD
 
 ### 2. 🤝 Le « Wakhale » Numérique (Négociation de Prix)
 * Workflow bilatéral asynchrone Acheteur ↔ Vendeur.
-* Statuts gérés : `PROPOSED`, `ACCEPTED`, `REJECTED`, `COUNTERED`, `EXPIRED`.
+* Statuts gérés : `PENDING`, `ACCEPTED`, `REJECTED`, `COUNTER_OFFERED`, `EXPIRED`.
 * Génération atomique d'un code promo privé à usage unique (remise exclusive) dès validation de l'accord.
 
 ### 3. 📹 Live Shopping & Vidéos Courtes
@@ -95,7 +95,7 @@ graph TD
 ### 4. 💳 Paiement Fractionné BNPL (Buy Now Pay Later)
 * Échéanciers 3x et 4x calculés à l'entier strict (zéro perte de centimes FCFA).
 * Garde-fou KYC Acheteur obligatoire (validation carte d'identité / passeport).
-* Cron automatisé quotidien (`@Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)`) pour le suivi des impayés et pénalités.
+* Cron automatisé quotidien (`@Cron('0 2 * * *')`) pour le suivi des impayés et pénalités.
 
 ---
 

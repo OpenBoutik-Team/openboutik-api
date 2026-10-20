@@ -1,7 +1,8 @@
 /**
  * OPENBOUTIK — TYPESCRIPT INTERFACES POUR LE FRONTEND DEV 1 (@mansss7)
+ * Dépôt : `openboutik-marketplace` (Port local : 3000)
  * Fichier prêt à l'emploi pour Next.js (App Router, Strict Mode)
- * Zéro type `any` — Alignement 100% avec Prisma et NestJS
+ * Zéro type `any` — Alignement 100% avec Prisma et NestJS (`openboutik-api`)
  */
 
 // ==============================================================================
@@ -20,6 +21,8 @@ export type SubscriptionStatus =
   | 'EXPIRED'
   | 'CANCELLED';
 
+export type KycStatus = 'NONE' | 'PENDING' | 'VERIFIED' | 'REJECTED';
+
 export type SalesChannel = 'MARKETPLACE' | 'SUBDOMAIN' | 'CUSTOM_DOMAIN';
 
 export type OrderStatus =
@@ -35,14 +38,20 @@ export type OrderStatus =
 
 export type EscrowStatus =
   | 'PENDING_PAYMENT'
-  | 'HELD_ESCROW'
+  | 'HELD_IN_ESCROW'
   | 'RELEASED_TO_VENDOR'
   | 'REFUNDED_TO_CLIENT'
   | 'FROZEN_BY_DISPUTE';
 
+export type DisputeStatus =
+  | 'OPEN'
+  | 'UNDER_REVIEW'
+  | 'RESOLVED_REFUND_CLIENT'
+  | 'RESOLVED_RELEASE_VENDOR';
+
 export type PaymentProvider = 'WAVE' | 'ORANGE_MONEY' | 'FREE_MONEY';
 
-export type DeliveryMethod = 'TIAK_TIAK' | 'STORE_PICKUP';
+export type DeliveryMethod = 'TIAK_TIAK' | 'PICKUP';
 
 export type CouponType = 'PERCENTAGE' | 'FIXED_FCFA';
 
@@ -53,6 +62,24 @@ export type NegotiationStatus =
   | 'COUNTER_OFFERED'
   | 'EXPIRED';
 
+export type StreamType = 'LIVE_STREAM' | 'SHORT_VIDEO';
+
+export type StreamStatus = 'SCHEDULED' | 'LIVE' | 'ENDED';
+
+export type InstallmentPlanStatus =
+  | 'ACTIVE'
+  | 'COMPLETED'
+  | 'DEFAULTED'
+  | 'CANCELLED';
+
+export type InstallmentPaymentStatus = 'PENDING' | 'PAID' | 'OVERDUE';
+
+export type UploadCategory =
+  | 'KYC_DOCUMENT'
+  | 'STREAM_MEDIA'
+  | 'PRODUCT_IMAGE'
+  | 'SHOP_BANNER';
+
 // ==============================================================================
 // 2. ENVELOPPES API STANDARD
 // ==============================================================================
@@ -61,30 +88,39 @@ export interface ApiResponse<T> {
   success: boolean;
   data: T;
   message?: string;
+  timestamp?: string;
 }
 
 export interface ApiErrorResponse {
+  success?: false;
   statusCode: number;
   message: string | string[];
   error?: string;
+  details?: string[];
   timestamp?: string;
-  path?: string;
 }
 
 export interface PaginationMeta {
   total: number;
   page: number;
   limit: number;
-  pages: number;
+  totalPages: number;
 }
 
 // ==============================================================================
-// 3. AUTHENTIFICATION & UTILISATEUR
+// 3. AUTHENTIFICATION & PROFIL ACHETEUR
 // ==============================================================================
 
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
+export interface RegisterClientPayload {
+  phone: string;
+  fullName: string;
+  email?: string;
+  password: string;
+}
+
+export interface LoginPayload {
+  phone: string;
+  password: string;
 }
 
 export interface UserProfile {
@@ -93,18 +129,19 @@ export interface UserProfile {
   fullName: string;
   email?: string | null;
   role: Role;
+  kycStatus?: KycStatus;
   isActive: boolean;
-  acceptedTermsAt?: string | null;
   createdAt: string;
 }
 
 export interface AuthResponse {
   user: UserProfile;
-  tokens: AuthTokens;
+  accessToken: string;
+  refreshToken: string;
 }
 
 // ==============================================================================
-// 4. RÉSOLUTION MULTI-TENANT & VITRINE DÉDIÉE
+// 4. RÉSOLUTION MULTI-TENANT & VITRINE DÉDIÉE (`StorefrontRenderer`)
 // ==============================================================================
 
 export interface ThemeConfig {
@@ -112,9 +149,15 @@ export interface ThemeConfig {
   secondaryColor?: string;
   fontFamily?: string;
   bannerStyle?: 'FULL_WIDTH' | 'CONTAINED' | 'MINIMAL';
-  wakhaleEnabled?: boolean;
+  bannerUrl?: string;
+  logoUrl?: string;
+  faviconUrl?: string;
   slogan?: string;
+  announcementBarText?: string;
+  announcementBarEnabled?: boolean;
+  wakhaleEnabled?: boolean;
   showSponsors?: boolean;
+  layoutGridColumns?: number;
   customCss?: string;
   [key: string]: unknown;
 }
@@ -142,6 +185,9 @@ export interface ShopStorefrontInfo {
   faviconUrl?: string | null;
   primaryColor?: string | null;
   whatsappNumber?: string | null;
+  isVerified?: boolean;
+  isOnVacation?: boolean;
+  vacationMessage?: string | null;
   announcementBarEnabled: boolean;
   announcementBarText?: string | null;
   themeConfig?: ThemeConfig | null;
@@ -181,7 +227,7 @@ export type StorefrontResolution =
   | StorefrontRedirectResponse;
 
 // ==============================================================================
-// 5. CATALOGUE & PRODUITS
+// 5. CATALOGUE, VARIANTES, AVIS 5★ & FAVORIS
 // ==============================================================================
 
 export interface ProductVariant {
@@ -221,32 +267,61 @@ export interface ProductSummary {
     isVerified: boolean;
     primaryColor?: string | null;
     whatsappNumber?: string | null;
+    isOnVacation?: boolean;
+    vacationMessage?: string | null;
   };
   variants?: ProductVariant[];
-}
-
-export interface ProductDetail extends ProductSummary {
-  category?: CategorySummary | null;
-  reviews?: ProductReview[];
-  averageRating?: number;
-  totalReviews?: number;
-  viewsCount?: number;
 }
 
 export interface ProductReview {
   id: string;
   productId: string;
-  rating: number; // 1 à 5
+  rating: number;
   comment?: string | null;
-  clientName: string; // Ex: "Fatou N."
+  clientName: string;
   vendorReply?: string | null;
   repliedAt?: string | null;
   createdAt: string;
 }
 
+export interface ProductReviewsResponse {
+  averageRating: number;
+  totalReviews: number;
+  reviews: ProductReview[];
+}
+
+export interface CreateReviewPayload {
+  rating: number;
+  comment?: string;
+}
+
+export interface WishlistItem {
+  id: string;
+  userId: string;
+  productId: string;
+  product: ProductSummary;
+  createdAt: string;
+}
+
 // ==============================================================================
-// 6. PANIER & CHECKOUT
+// 6. PANIER, CODES PROMO & CHECKOUT SÉQUESTRE
 // ==============================================================================
+
+export interface ValidateCouponPayload {
+  code: string;
+  shopId: string;
+  subtotalFcfa: number;
+}
+
+export interface ValidatedCouponResult {
+  valid: boolean;
+  couponId: string;
+  code: string;
+  type: CouponType;
+  value: number;
+  discountAmountFcfa: number;
+  newSubtotalFcfa: number;
+}
 
 export interface CheckoutItemPayload {
   productId: string;
@@ -263,14 +338,6 @@ export interface CheckoutPayload {
   deliveryMethod?: DeliveryMethod;
   paymentProvider: PaymentProvider;
   couponCode?: string;
-}
-
-export interface CheckoutSessionResult {
-  id: string;
-  totalAmountFcfa: number;
-  paymentProvider: PaymentProvider;
-  providerReference: string;
-  paymentUrl?: string;
 }
 
 export interface OrderItemSummary {
@@ -303,13 +370,12 @@ export interface OrderSummary {
   discountAmountFcfa: number;
   couponCode?: string | null;
   totalAmountFcfa: number;
-  buyerProtectionFeeFcfa: number;
   salesChannel: SalesChannel;
   deliveryMethod: DeliveryMethod;
   deliveryAddress: string;
   deliveryPhone: string;
   deliveryConfirmationCode?: string;
-  invoiceUrl: string;
+  invoiceUrl?: string | null;
   items?: OrderItemSummary[];
   trackings?: OrderTrackingStep[];
   escrowStatus?: EscrowStatus;
@@ -317,45 +383,51 @@ export interface OrderSummary {
 }
 
 export interface CheckoutResponseData {
-  checkoutSession: CheckoutSessionResult;
+  checkoutSession: {
+    id: string;
+    totalAmountFcfa: number;
+    paymentProvider: PaymentProvider;
+    providerReference: string;
+    paymentUrl?: string;
+  };
   orders: OrderSummary[];
 }
 
 // ==============================================================================
-// 7. CODES PROMO & MARKETING
+// 7. LITIGES ACHETEUR (DISPUTES)
 // ==============================================================================
 
-export interface ValidateCouponPayload {
-  code: string;
-  shopId: string;
-  subtotalFcfa: number;
+export interface OpenDisputePayload {
+  reason: string;
+  evidenceUrls?: string[];
 }
 
-export interface ValidatedCouponResult {
-  valid: boolean;
-  couponId: string;
-  code: string;
-  type: CouponType;
-  value: number;
-  discountAmountFcfa: number;
-  newSubtotalFcfa: number;
+export interface DisputeRecord {
+  id: string;
+  orderId: string;
+  openedByUserId: string;
+  reason: string;
+  evidenceUrls: string[];
+  status: DisputeStatus;
+  resolutionNotes?: string | null;
+  resolvedAt?: string | null;
+  createdAt: string;
 }
 
 // ==============================================================================
-// 8. WAKHALE (NÉGOCIATION DE PRIX)
+// 8. WAKHALE (NÉGOCIATION DE PRIX ACHETEUR)
 // ==============================================================================
 
 export interface CreateNegotiationPayload {
   productId: string;
   proposedPriceFcfa: number;
-  notes?: string;
 }
 
-export interface NegotiationResult {
+export interface NegotiationRecord {
   id: string;
   productId: string;
-  productName?: string;
-  productImage?: string;
+  buyerId: string;
+  shopId: string;
   originalPriceFcfa: number;
   proposedPriceFcfa: number;
   counterPriceFcfa?: number | null;
@@ -368,18 +440,103 @@ export interface NegotiationResult {
   createdAt: string;
 }
 
-export interface RespondNegotiationPayload {
-  action: 'ACCEPT' | 'REJECT';
+// ==============================================================================
+// 9. LIVE SHOPPING & VIDÉOS COURTES
+// ==============================================================================
+
+export interface StreamProductItem {
+  id: string;
+  productId: string;
+  isPinned: boolean;
+  specialPriceFcfa?: number | null;
+  product: ProductSummary;
+}
+
+export interface MediaStream {
+  id: string;
+  shopId: string;
+  title: string;
+  description?: string | null;
+  type: StreamType;
+  status: StreamStatus;
+  mediaUrl: string;
+  thumbnailUrl?: string | null;
+  scheduledAt?: string | null;
+  streamProducts: StreamProductItem[];
+  createdAt: string;
 }
 
 // ==============================================================================
-// 9. WISHLIST / FAVORIS
+// 10. PAIEMENT FRACTIONNÉ BNPL (3x / 4x) & KYC ACHETEUR
 // ==============================================================================
 
-export interface WishlistItem {
+export interface SubmitBuyerKycPayload {
+  idCardNumber: string;
+  idCardUrl: string;
+}
+
+export interface InitBnplPayload {
+  installmentsCount: 3 | 4;
+}
+
+export interface InstallmentPaymentItem {
   id: string;
+  planId: string;
+  installmentNumber: number;
+  amountFcfa: number;
+  dueDate: string;
+  paidAt?: string | null;
+  status: InstallmentPaymentStatus;
+}
+
+export interface InstallmentPlan {
+  id: string;
+  orderId: string;
   userId: string;
-  productId: string;
-  product: ProductSummary;
+  totalAmountFcfa: number;
+  installmentsCount: number;
+  status: InstallmentPlanStatus;
+  payments: InstallmentPaymentItem[];
   createdAt: string;
+}
+
+// ==============================================================================
+// 11. MESSAGERIE INTERNE & STOCKAGE CLOUD
+// ==============================================================================
+
+export interface SendMessagePayload {
+  receiverId: string;
+  shopId?: string;
+  productId?: string;
+  orderId?: string;
+  content: string;
+}
+
+export interface DirectMessage {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  shopId?: string | null;
+  productId?: string | null;
+  orderId?: string | null;
+  content: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface CreateUploadTicketPayload {
+  filename: string;
+  fileType: string;
+  fileSize: number;
+  category: UploadCategory;
+}
+
+export interface UploadTicketResponse {
+  ticketId: string;
+  provider: string;
+  uploadUrl: string;
+  publicUrl: string;
+  signedParams: Record<string, string | number>;
+  expiresAt: string;
+  isPrivate: boolean;
 }

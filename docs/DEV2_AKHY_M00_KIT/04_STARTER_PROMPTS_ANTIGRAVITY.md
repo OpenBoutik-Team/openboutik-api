@@ -1,114 +1,123 @@
-# 🎯 STARTER PROMPTS ANTIGRAVITY — PÔLE DEV 2 (@akhy-m00)
+# 🎯 STARTER PROMPTS ANTIGRAVITY — PÔLE DEV 2 (@akhy-m00 — `openboutik-seller` • Port 3001)
 
-Ces 5 prompts séquentiels sont prêts à être copiés-collés directement dans le chat de ton IDE Antigravity pour construire ton application Next.js de gestion commerçant et Store Builder en symbiose parfaite avec `openboutik-api`.
+Ces 5 prompts séquentiels sont prêts à être copiés-collés directement dans le chat de ton IDE Antigravity pour construire l'application **`openboutik-seller`** (Port `3001` : Espace Marchand SaaS, Store Builder & Back-Office Super-Admin) en symbiose parfaite avec `openboutik-api` (Port `4000`).
 
 ---
 
-## 🟢 PROMPT 1 : ÉDITEUR VISUEL STORE BUILDER (TEMPS RÉEL & SAUVEGARDE `PUT /shops/me/theme`)
+## 🟢 PROMPT 1 : AUTH VENDEUR, TUNNEL D'ONBOARDING 5 ÉTAPES, CATALOGUE/VARIANTES & COMMANDES OTP
+
+```text
+Agis en tant que Principal Frontend Architect Next.js App Router.
+Implémente le socle Marchand (`VENDOR`) pour `openboutik-seller` (Port 3001) connecté à `http://localhost:4000/api/v1`.
+
+Fonctionnalités métier obligatoires :
+1. Authentification & Onboarding Vendeur (`/register`, `/onboarding`) :
+   - Inscription via `POST /auth/register/vendor` avec case obligatoire `acceptTerms: true`.
+   - Tunnel d'onboarding progressif en 5 étapes consommant `GET /shops/me/onboarding` et `PATCH /shops/me/onboarding/step/:step` :
+     * Étape 1 : Identité boutique + vérification live du slug (`GET /shops/check-slug/:slug` avec debounce 400ms et affichage de la suggestion en cas d'indisponibilité).
+     * Étape 2 : Apparence (couleurs, logo, bannière via `POST /storage/upload-ticket` ou bouton Passer `{ skip: true }`).
+     * Étape 3 : Numéro WhatsApp Social Commerce (`+221...`).
+     * Étape 4 : Numéros de réception Wave, Orange Money et nom du titulaire (`payoutHolderName`).
+     * Étape 5 : Choix du forfait (`FREE`, ou essai 30j `PRO`/`PREMIUM`).
+2. Gestion Catalogue, Variantes & Alertes Stocks (`/dashboard/products`) :
+   - CRUD Produits (`POST /products`, `PATCH /products/:id`, `DELETE /products/:id`), ajustement rapide du stock (`PATCH /products/:id/stock`) et réorganisation de la vitrine (`PATCH /products/me/layout`).
+   - Gestion des déclinaisons Tailles & Couleurs (`POST /products/:id/variants`, `PATCH /products/variants/:variantId`, `DELETE /products/variants/:variantId`).
+   - Bandeau d'alerte Stock Critique (`GET /products/me/low-stock`).
+3. Traitement des Commandes & Déblocage Séquestre par OTP (`/dashboard/orders`) :
+   - Liste filtrable par statut (`GET /orders/vendor/me`).
+   - Actions : Passer en préparation (`PATCH /orders/:id/prepare`), Expédier via Tiak-Tiak (`PATCH /orders/:id/ship`).
+   - Modale de saisie du code OTP à 6 chiffres fourni par le client (`POST /orders/:id/confirm-delivery` avec `{ confirmationCode }`) pour débloquer instantanément les fonds vers le Wallet.
+   - Mémos confidentiels (`POST/GET /orders/:id/notes`) et téléchargement reçu PDF (`GET /orders/:id/invoice`).
+```
+
+---
+
+## 🟢 PROMPT 2 : ÉDITEUR VISUEL STORE BUILDER TEMPS RÉEL (`PUT /shops/me/theme`)
 
 ```text
 Agis en tant que Principal Frontend Architect spécialisé dans les éditeurs no-code Next.js.
-Implémente le module Store Builder pour `openboutik-seller` dans la route `/store-builder`.
+Implémente le module Store Builder pour `openboutik-seller` dans la route `/dashboard/store-builder`.
 
 Spécifications techniques :
-1. Architecture en 2 colonnes (Desktop) et onglets adaptatifs (Mobile) :
-   - Panneau latéral gauche : Contrôles d'édition ergonomiques divisés en accordéons :
-     a. Couleurs & Identité : Sélecteur de couleur primaire (avec presets dakaroise : Émeraude Teranga, Bleu Océan Almadies, Or Savane), upload logo, upload favicon.
-     b. Bannière & Typographie : Style d'en-tête (Pleine largeur, Contenue, Minimale), upload bannière, choix de police (Inter, Poppins, Outfit).
-     c. Barre d'Annonce : Interrupteur d'activation, saisie du message promotionnel (ex: "Livraison Tiak-Tiak offerte").
-     d. Modules Métier : Interrupteur d'activation de la négociation "Wakhale", affichage des sponsors partenaires.
-   - Panneau droit : Prévisualisation en direct (Live Preview) dynamique réagissant instantanément aux modifications à 60fps (via Zustand ou Context local).
-2. Persistance des données :
-   - Initialisation au montage du composant via `GET http://localhost:4000/api/v1/shops/me/theme`.
-   - Bouton d'action proéminent « Enregistrer et Publier » avec état de chargement, déclenchant `PUT /shops/me/theme` avec l'objet complet `themeConfig`.
-   - Toast de confirmation de succès stylisé.
-3. Code 100 % typé en TypeScript strict, sans aucun `any`, en utilisant l'interface `ThemeConfig` de `@/types/api`.
+1. Architecture en 2 colonnes (Desktop) et onglets adaptatifs (Mobile 360px) :
+   - Panneau latéral gauche : Contrôles d'édition divisés en accordéons :
+     a. Couleurs & Identité : Sélecteur de couleur primaire et secondaire (presets dakarois : Émeraude Teranga `#10B981`, Bleu Almadies `#0284C7`, Or Savane `#D97706`), upload logo et favicon via `POST /storage/upload-ticket`.
+     b. Bannière & Typographie : Style d'en-tête (`FULL_WIDTH`, `CONTAINED`, `MINIMAL`), upload bannière, choix de police (`Inter`, `Poppins`, `Outfit`), slogan.
+     c. Barre d'Annonce & Mode Vacances : Interrupteur `announcementBarEnabled`, texte promotionnel, et bascule rapide du Mode Vacances (`PATCH /shops/me/vacation`).
+     d. Modules Métier : Interrupteur d'activation de la négociation « Wakhale » (`wakhaleEnabled`) et de l'affichage des sponsors (`showSponsors`).
+   - Panneau droit : Aperçu Live (Preview 60fps) réagissant instantanément aux changements de l'état local (Zustand).
+2. Persistance sans perte :
+   - Chargement initial via `GET /shops/me/theme`.
+   - Bouton « Enregistrer et Publier » appelant `PUT /shops/me/theme` avec l'objet complet `ThemeConfig`.
+3. Code 100 % typé en TypeScript strict, sans aucun `any`.
 ```
 
 ---
 
-## 🟢 PROMPT 2 : MOTEUR DE RENDU STOREFRONT DYNAMIQUE & VARIABLES CSS
+## 🟢 PROMPT 3 : DASHBOARD 360°, ABONNEMENTS SAAS, ESSAI 30J, BANDEAU DUNNING 72H, SPONSORS & PORTEFEUILLE KYC
 
 ```text
 Agis en tant que Lead Frontend Engineer.
-Crée le composant de rendu de vitrine marchande `StorefrontRenderer.tsx` qui consomme la configuration `themeConfig` et affiche le site dédié du commerçant.
-
-Spécifications requises :
-1. Injection dynamique des variables CSS :
-   - Applique `--primary: themeConfig.primaryColor` et `--font-family: themeConfig.fontFamily` au niveau de l'élément racine pour thématiser instantanément tous les boutons, badges et bordures.
-2. Éléments visuels obligatoires :
-   - Barre d'annonce supérieure conditionnelle (si `announcementBarEnabled === true`).
-   - En-tête de boutique avec logo, nom, slogan et badge "Vendeur Vérifié".
-   - Bannière personnalisée avec superposition élégante du titre.
-   - Bouton flottant de contact direct WhatsApp ouvrant `https://wa.me/+221XXXXXXXXX`.
-   - Carrousel ou grille des sponsors et partenaires (`shop_sponsors`) avec leurs logos et badges officiels (ex: "Partenaire Wave").
-   - Grille de produits responsive (cartes denses avec prix FCFA formaté, bouton d'ajout au panier, et badge d'offre Wakhale si activé).
-3. Gestion des états :
-   - Skeleton d'attente soigné pendant le chargement des données.
-   - Message accueillant si la boutique n'a pas encore publié d'articles.
-4. Aucun dégradé violet IA. Palette sobre, lisible et taillée pour le e-commerce sénégalais.
-```
-
----
-
-## 🟢 PROMPT 3 : DASHBOARD ABONNEMENTS, ESSAI 30 JOURS & BANDEAU DUNNING 72H
-
-```text
-Agis en tant que Lead Frontend Engineer.
-Développe la page de gestion des Abonnements (`/settings/billing`) et le bandeau d'alerte Dunning global pour `openboutik-seller`.
+Développe le Dashboard 360°, la gestion financière et les modules SaaS Phase 5 de `openboutik-seller`.
 
 Fonctionnalités métier obligatoires :
-1. Comparatif interactif des 3 forfaits SaaS :
-   - FREE (0 FCFA - 3.0 % commission marketplace).
-   - PRO (5 000 FCFA/mois - 0 % commission, sous-domaine offert, Store Builder, 5 sponsors).
-   - PREMIUM (15 000 FCFA/mois - 0 % commission, domaine perso, BNPL, VIP).
-2. Activation de l'Essai Gratuit 30 Jours :
-   - Bouton « Activer mes 30 jours gratuits » sur les forfaits PRO ou PREMIUM.
-   - Appel API `POST /subscriptions/start-trial`.
-   - Gestion explicite du refus 403 : affichage d'un modal chaleureux expliquant que le numéro Wave/OM ou la CNI a déjà bénéficié de l'offre d'essai sur OpenBoutik.
-3. Compteur de valeur perçue (Économies réalisées) :
-   - Affichage d'une carte KPI valorisant le montant `totalCommissionSavedFcfa` issu de `GET /shops/me/dashboard-360` (ex: "Vous avez économisé 38 000 FCFA grâce à votre forfait PRO !").
-4. Bandeau d'Urgence Dunning 72h (`DunningAlertBanner.tsx`) :
-   - S'affiche en haut de toutes les pages du dashboard si `subscriptionAndDomain.dunningAlert.isPastDue === true`.
-   - Affiche le décompte des heures restantes avant suspension (`gracePeriodEndsAt`) et le numéro de tentative (ex: "Tentative 2/6").
-   - Texte clair : "Vos avantages 0 % et votre site dédié restent actifs pendant la période de grâce. Veuillez approvisionner votre Wallet via Wave ou OM pour éviter l'interruption de vos services."
-   - Bouton 1-clic « Recharger mon Wallet » ouvrant la modale de régularisation.
+1. Dashboard 360° & Bandeau d'Urgence Dunning 72h (`/dashboard` & `DunningAlertBanner.tsx`) :
+   - Consomme `GET /shops/me/dashboard-360` et `GET /analytics/top-products`.
+   - Affiche la carte KPI d'économies réalisées (`salesMetrics.totalCommissionSavedFcfa`), la répartition des ventes par canal (`MARKETPLACE`, `SUBDOMAIN`, `CUSTOM_DOMAIN`) et le Top 5 mensuel avec taux de conversion.
+   - Si `subscriptionAndDomain.dunningAlert.isPastDue === true`, affiche un bandeau rouge persistant en haut de toutes les pages avec le compte à rebours avant fin de période de grâce (`gracePeriodEndsAt`), le numéro de relance (`retryCount`/6) et un bouton 1-clic « Recharger et Régulariser ».
+2. Abonnements & Essai Gratuit 30 Jours (`/dashboard/billing`) :
+   - Comparatif des 3 forfaits (`GET /subscriptions/plans` : FREE 3%, PRO 5 000 FCFA 0%, PREMIUM 15 000 FCFA 0%).
+   - Bouton « Activer mes 30 jours d'essai gratuit » appelant `POST /subscriptions/start-trial` (gestion explicite de l'erreur 403 anti-fraude `UsedTrialRegistry`).
+   - Bouton de réactivation / changement de plan (`POST /subscriptions/reactivate`).
+3. Portefeuille, Recharge & Bouclier KYC CNI (`/dashboard/wallet`) :
+   - Consomme `GET /wallets/me` (solde disponible vs solde en séquestre).
+   - Modale de recharge Wallet (`POST /wallets/me/topup`) et modale de retrait Mobile Money (`POST /wallets/payout`).
+   - Si `kycStatus !== 'VERIFIED'`, affiche le formulaire d'upload CNI (`POST /storage/upload-ticket` puis `POST /shops/me/kyc`).
+4. Sponsors (`/dashboard/sponsors`) & Conciergerie Domaine (`/dashboard/domain`) :
+   - CRUD Sponsors (`GET/POST/PATCH/DELETE /shops/me/sponsors`) avec blocage en plan FREE et limite à 5 en plan PRO.
+   - Carte Conciergerie WhatsApp pré-remplie pour connecter un domaine `.sn` ou `.com` en plan PREMIUM.
+5. Marketing, Wakhale Vendeur & Live Shopping Vendeur :
+   - Codes promo (`POST/GET/PATCH/DELETE /coupons`), réponses aux avis (`PATCH /reviews/:id/reply`).
+   - Réponse aux négociations Wakhale (`GET /negotiations/shop`, `PATCH /negotiations/:id/respond` avec `ACCEPT`, `COUNTER_OFFER`, `REJECT`).
+   - Studio Live Shopping (`POST /streams`, `PATCH /streams/:id/status`, épinglage flash `PATCH /streams/:id/pin-product/:productId`).
 ```
 
 ---
 
-## 🟢 PROMPT 4 : CRUD SPONSORS & CARTE CONCIERGERIE DOMAINE WHATSAPP
+## 🟢 PROMPT 4 : BACK-OFFICE SUPER-ADMIN (`/admin/*` — ARBITRAGE LITIGES, KYC & SÉQUESTRE)
 
 ```text
-Agis en tant que Lead Frontend Engineer.
-Développe deux composants critiques pour `openboutik-seller` :
+Agis en tant que Principal Full-Stack & Frontend Architect.
+Développe l'Espace Back-Office Super-Admin dans `openboutik-seller` sous les routes `/admin/*` (strictement protégé pour `user.role === 'SUPER_ADMIN'`).
 
-Composant A — Gestion des Partenaires & Sponsors (`/settings/sponsors`) :
-1. Liste des sponsors actuels avec leur logo, nom, badgeText et commutateur d'activation/désactivation.
-2. Formulaire modal d'ajout de sponsor (`POST /shops/me/sponsors`) : nom, URL du logo, site web optionnel, badge (ex: "Distributeur Officiel"), ordre d'affichage.
-3. Règle métier : Si le plan de la boutique est FREE, désactiver le bouton d'ajout et afficher un encadré d'incitation à passer au plan PRO (qui débloque 5 sponsors). Si plan PRO, bloquer à 5 sponsors max.
-
-Composant B — Carte Conciergerie Domaine Personnalisé (`/settings/domain`) :
-1. Affichage du sous-domaine actif actuel (ex: `https://dakar-chic.openboutik.sn`) avec bouton pour copier le lien et tester la redirection.
-2. Section « Votre propre nom de domaine (.sn, .com) » :
-   - Champ de saisie du domaine souhaité (ex: `terangamode.sn`).
-   - Bouton d'action principal « Demander l'assistance Conciergerie WhatsApp » qui génère une URL `https://wa.me/221770000000?text=...` pré-remplie avec le message :
-     "Bonjour OpenBoutik Conciergerie, je souhaite brancher mon nom de domaine personnalisé [terangamode.sn] sur ma boutique [Dakar Chic] (ID: [uuid])."
-   - Affichage du statut en cours (`PENDING` ou `VERIFIED`).
+Modules obligatoires :
+1. Cockpit Trésorerie Séquestre & Retraits (`/admin/escrow`) :
+   - Consomme `GET /escrow/overview` : cartes KPI temps réel (Total bloqué en séquestre, Total gelé sous litige, Total reversé aux vendeurs, Commissions perçues).
+   - Bouton d'exécution manuelle du filet de sécurité 24h (`POST /escrow/auto-release`).
+   - Tableau de supervision des décaissements Mobile Money (`GET /wallets/admin/payouts`).
+2. Tribunal d'Arbitrage des Litiges (`/admin/disputes`) :
+   - Liste des litiges ouverts (`GET /disputes?status=OPEN`) et vue détaillée (`GET /disputes/:id`).
+   - Visionneuse des preuves photos et lecteur d'audit de la messagerie Acheteur ↔ Vendeur sur la commande concernée (`GET /admin/messages/order/:orderId`).
+   - Deux boutons d'arbitrage irrévocable (`POST /disputes/:id/arbitrate` avec saisie obligatoire de `resolutionNotes`) :
+     * « Rembourser l'Acheteur (`REFUND_CLIENT`) »
+     * « Libérer les fonds au Vendeur (`RELEASE_VENDOR`) »
+3. Guichet de Certification KYC Marchands & Acheteurs BNPL (`/admin/kyc`) :
+   - Visualisation sécurisée des pièces CNI via `GET /storage/secure-view?fileUrl=...` (lien signé éphémère 15 min).
+   - Validation ou rejet du KYC Marchand (`PATCH /shops/admin/:id/kyc` avec `{ status: 'VERIFIED' | 'REJECTED', verifyShopBadge: true, adminNotes }`) et certification boutique (`PATCH /shops/:id/verify`).
+   - Validation ou rejet du KYC Acheteur BNPL (`PATCH /bnpl/admin/kyc/:targetUserId` avec `{ status: 'VERIFIED' | 'REJECTED', rejectionReason }`).
 ```
 
 ---
 
-## 🟢 PROMPT 5 : TESTS D'INTÉGRATION & CERTIFICATION ESPACE MARCHAND
+## 🟢 PROMPT 5 : SUITE DE TESTS D'INTÉGRATION E2E (`openboutik-seller` — MARCHAND & SUPER-ADMIN)
 
 ```text
 Agis en tant que Staff QA & Frontend Engineer.
-Rédige une suite de tests automatisés avec Playwright (ou Vitest + Testing Library) pour certifier `openboutik-seller` :
+Rédige une suite de tests automatisés (Playwright ou Vitest + Testing Library) pour certifier `openboutik-seller` sur le port 3001 :
 
 Scénarios à valider :
-1. Store Builder : modification de la couleur primaire en `#059669`, mise à jour du slogan, et clic sur « Enregistrer » déclenchant `PUT /shops/me/theme` avec le JSON conforme.
-2. Abonnements : tentative d'activation d'essai gratuit sur un compte ayant déjà bénéficié de l'offre, et vérification de l'affichage du modal d'erreur 403.
-3. Dunning : simulation d'un statut `PAST_DUE` et vérification de la présence du bandeau rouge avec décompte d'heures.
-4. Sponsors : ajout d'un sponsor avec nom et logo, et vérification de l'incrémentation dans la liste.
-5. Gestion des commandes : passage d'une commande à l'état `PREPARING`, puis saisie du code OTP 6 chiffres pour déblocage des fonds.
+1. Onboarding Vendeur & Catalogue : validation live du slug (`GET /shops/check-slug/:slug`), création d'un produit avec variante et saisie du code OTP 6 chiffres (`POST /orders/:id/confirm-delivery`).
+2. Store Builder & Dunning 72h : modification du thème et appel `PUT /shops/me/theme`, affichage du bandeau rouge d'urgence quand `dunningAlert.isPastDue === true`, et gestion du refus 403 sur `POST /subscriptions/start-trial`.
+3. Wakhale & Live Shopping Vendeur : envoi d'une contre-offre (`PATCH /negotiations/:id/respond` avec `action: 'COUNTER_OFFER'`) et épinglage d'un produit en direct (`PATCH /streams/:id/pin-product/:productId`).
+4. Back-Office Super-Admin : affichage de `GET /escrow/overview`, arbitrage d'un litige (`POST /disputes/:id/arbitrate`) et validation KYC d'un marchand (`PATCH /shops/admin/:id/kyc`).
 ```

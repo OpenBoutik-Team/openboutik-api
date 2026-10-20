@@ -22,9 +22,9 @@ Ses piliers de différenciation sont adaptés aux réalités du marché ouest-af
 
 ### B. Organisation en 3 Dépôts GitHub
 Pour éviter tout conflit d'équipe, l'organisation a été scindée en 3 dépôts distincts :
-* **`openboutik-marketplace` (Dev 1) :** Front Client Next.js (Catalogue, Vitrines, Panier, Checkout, Espace Acheteur). Port local : `3000`.
-* **`openboutik-seller` (Dev 2) :** Front Marchand SaaS & Back-Office Super-Admin Next.js. Port local : `3001`.
-* **`openboutik-api` (Dev 3 - Nous) :** Cerveau Backend NestJS, Prisma 7, MySQL InnoDB, Moteur de Séquestre et Logistique. Port local : `4000`.
+* **`openboutik-marketplace` (Dev 1 — `@mansss7`) :** Front Client Next.js (Catalogue, Vitrines Multi-Tenant, Panier, Checkout, Espace Acheteur). Port local : `3000`.
+* **`openboutik-seller` (Dev 2 — `@akhy-m00`) :** Front Marchand SaaS, Store Builder & Back-Office Super-Admin Next.js. Port local : `3001`.
+* **`openboutik-api` (Dev 3 — `@HYPNOTYZEDCHART` / Nous) :** Cerveau Backend NestJS, Prisma 7, MySQL InnoDB, Moteur de Séquestre et Logistique. Port local : `4000`.
 
 ### C. Philosophie de Travail (« Le Pilote et le Codeur »)
 Notre méthode de développement a respecté 5 règles absolues :

@@ -1,20 +1,19 @@
-# 📡 CONTRATS D'API & PAYLOADS — PÔLE DEV 1 (@mansss7)
+# 📡 CONTRATS D'API & PAYLOADS — PÔLE DEV 1 (@mansss7 — `openboutik-marketplace` • Port 3000)
 **Base URL Locale :** `http://localhost:4000/api/v1`  
 **Base URL Production :** `https://openboutik-api.onrender.com/api/v1`  
-**Format global :** `application/json` avec enveloppe standard `{ "success": boolean, "data": ... }` ou `{ "statusCode": number, "message": string, "error": string }`.
+**Format global :** `application/json` avec enveloppe standard `{ "success": boolean, "data": ..., "message": string, "timestamp": string }`.
 
 ---
 
-## 1. RÉSOLUTION MULTI-TENANT (SOUS-DOMAINES & VITRINES DÉDIÉES)
+## 1. RÉSOLUTION MULTI-TENANT & VITRINES MARCHANDES
 
 ### `GET /shops/storefront/:identifier`
-Utilisé par le middleware Next.js pour résoudre une vitrine marchande à partir d'un sous-domaine (`[slug]`) ou d'un domaine personnalisé (`[domaine].sn`).
+Utilisé par le `middleware.ts` et la page `/storefront/[identifier]` de `openboutik-marketplace` pour résoudre une vitrine marchande à partir d'un sous-domaine (`[slug].openboutik.sn`) ou d'un domaine personnalisé (`[domaine].sn`).
 
-- **Authentification :** Publique (aucun header requis)
-- **Paramètre d'URL :**
-  - `:identifier` (ex: `dakar-chic` ou `dakar-chic.openboutik.sn` ou `terangamode.sn`)
+- **Authentification :** Publique
+- **Paramètre d'URL :** `:identifier` (ex: `teranga-mode` ou `teranga-mode.openboutik.sn` ou `terangamode.sn`)
 
-#### A. Cas 1 : Sous-domaine actif (Forfait PRO ou PREMIUM)
+#### A. Cas 1 : Sous-domaine actif (Forfait PRO ou PREMIUM, ou en période de grâce Dunning 72h)
 **Réponse `200 OK` :**
 ```json
 {
@@ -23,22 +22,26 @@ Utilisé par le middleware Next.js pour résoudre une vitrine marchande à parti
     "subdomainActive": true,
     "themeConfig": {
       "primaryColor": "#10B981",
+      "secondaryColor": "#0F172A",
       "fontFamily": "Inter",
       "bannerStyle": "FULL_WIDTH",
       "wakhaleEnabled": true,
-      "slogan": "L'élégance dakaroise à portée de clic"
+      "slogan": "L'élégance dakaroise à portée de clic",
+      "showSponsors": true
     },
     "shop": {
       "id": "shop-pro-1234",
-      "name": "Dakar Chic Boutique",
-      "slug": "dakar-chic",
+      "name": "Teranga Mode",
+      "slug": "teranga-mode",
       "slogan": "L'élégance dakaroise à portée de clic",
-      "description": "Prêt-à-porter de luxe et boubous traditionnels faits main.",
+      "description": "Prêt-à-porter de luxe et boubous traditionnels faits main à la Médina.",
       "logoUrl": "https://images.unsplash.com/photo-1544816155-12df9643f363",
       "bannerUrl": "https://images.unsplash.com/photo-1441986300917-64674bd600d8",
       "faviconUrl": "https://images.unsplash.com/photo-favicon.png",
       "primaryColor": "#10B981",
       "whatsappNumber": "+221771234567",
+      "isOnVacation": false,
+      "vacationMessage": null,
       "announcementBarEnabled": true,
       "announcementBarText": "Livraison Tiak-Tiak offerte à Dakar dès 35 000 FCFA d'achat !",
       "subscriptionPlan": "PRO",
@@ -50,9 +53,9 @@ Utilisé par le middleware Next.js pour résoudre une vitrine marchande à parti
     "sponsors": [
       {
         "id": "sp-1",
-        "name": "Orange Money",
-        "logoUrl": "https://storage.openboutik.sn/sponsors/om.png",
-        "websiteUrl": "https://orangemoney.sn",
+        "name": "Wave Sénégal",
+        "logoUrl": "https://storage.openboutik.sn/sponsors/wave.png",
+        "websiteUrl": "https://wave.com",
         "badgeText": "Partenaire Officiel",
         "displayOrder": 1,
         "isActive": true
@@ -61,8 +64,8 @@ Utilisé par le middleware Next.js pour résoudre une vitrine marchande à parti
     "featuredProducts": [
       {
         "id": "prod-1",
-        "name": "Boubou Grand Bassin Brodé",
-        "slug": "boubou-grand-bassin",
+        "name": "Boubou Bazin Riche Brodé",
+        "slug": "boubou-bazin-riche-brode",
         "priceFcfa": 35000,
         "compareAtPriceFcfa": 45000,
         "stock": 8,
@@ -73,8 +76,8 @@ Utilisé par le middleware Next.js pour résoudre une vitrine marchande à parti
     "products": [
       {
         "id": "prod-1",
-        "name": "Boubou Grand Bassin Brodé",
-        "slug": "boubou-grand-bassin",
+        "name": "Boubou Bazin Riche Brodé",
+        "slug": "boubou-bazin-riche-brode",
         "priceFcfa": 35000,
         "stock": 8,
         "images": ["https://storage.openboutik.sn/products/boubou.jpg"]
@@ -84,8 +87,8 @@ Utilisé par le middleware Next.js pour résoudre une vitrine marchande à parti
 }
 ```
 
-#### B. Cas 2 : Sous-domaine désactivé (Forfait FREE ou suspendu)
-**Réponse `200 OK` (Redirection requise) :**
+#### B. Cas 2 : Sous-domaine inactif (Forfait FREE ou suspendu après 72h)
+**Réponse `200 OK` :**
 ```json
 {
   "success": true,
@@ -93,333 +96,187 @@ Utilisé par le middleware Next.js pour résoudre une vitrine marchande à parti
     "subdomainActive": false,
     "redirectToMarketplace": true,
     "reason": "PLAN_FREE_NO_SUBDOMAIN",
-    "marketplaceUrl": "https://www.openboutik.sn/boutique/dakar-chic",
-    "redirectMarketplaceUrl": "/shops/dakar-chic",
+    "marketplaceUrl": "https://www.openboutik.sn/boutique/dakar-tech-hub",
+    "redirectMarketplaceUrl": "/shops/dakar-tech-hub",
     "shopBasicInfo": {
       "id": "shop-free-5678",
-      "name": "Dakar Chic Boutique",
-      "slug": "dakar-chic",
-      "logoUrl": "https://storage.openboutik.sn/logos/dakar.jpg",
-      "mainCategory": "Mode"
+      "name": "Dakar Tech Hub",
+      "slug": "dakar-tech-hub",
+      "logoUrl": "https://storage.openboutik.sn/logos/dakartech.jpg",
+      "mainCategory": "Électronique"
     }
   }
 }
 ```
-*Action Next.js : Le middleware redirige immédiatement vers la fiche boutique sur la marketplace centrale (`/shops/dakar-chic`).*
+
+### `GET /shops` & `GET /shops/:slug`
+- `GET /shops?search=mode&city=Dakar&isVerified=true` : Annuaire public des boutiques sur la marketplace centrale.
+- `GET /shops/:slug` : Vitrine publique d'une boutique sur la marketplace centrale (`/shops/[slug]`).
 
 ---
 
-## 2. AUTHENTIFICATION CLIENT & COMPTE ACHETEUR
+## 2. AUTHENTIFICATION CLIENT (`CLIENT`)
 
 ### `POST /auth/register/client`
-Inscription d'un acheteur sénégalais (numéro de téléphone unique).
-
 - **Payload :**
 ```json
 {
-  "phone": "+221771234567",
+  "phone": "+221765432109",
   "fullName": "Fatou Ndiaye",
-  "email": "fatou.ndiaye@gmail.com",
-  "password": "Password123!"
-}
-```
-- **Réponse `201 Created` :**
-```json
-{
-  "success": true,
-  "data": {
-    "user": {
-      "id": "usr-client-123",
-      "phone": "+221771234567",
-      "fullName": "Fatou Ndiaye",
-      "role": "CLIENT"
-    },
-    "tokens": {
-      "accessToken": "eyJhbGciOiJIUzI1NiIs...",
-      "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
-    }
-  }
+  "email": "client.fatou@gmail.com",
+  "password": "Passer123!"
 }
 ```
 
 ### `POST /auth/login`
-Connexion avec identifiants standard.
+- **Payload :** `{ "phone": "+221765432109", "password": "Passer123!" }`
+- **Réponse `200 OK` :** Retourne `{ "user": { ... }, "accessToken": "...", "refreshToken": "..." }`.
 
-- **Payload :**
-```json
-{
-  "phone": "+221771234567",
-  "password": "Password123!"
-}
-```
-- **Réponse `200 OK` :** Même structure de tokens.
-
-### `POST /auth/refresh`
-Renouvellement du JWT expiré (silencieux via Axios/Fetch interceptor).
-
-- **Headers :** `Authorization: Bearer <refreshToken>`
-- **Réponse `200 OK` :** `{ "success": true, "data": { "accessToken": "...", "refreshToken": "..." } }`
+### `POST /auth/refresh` & `GET /auth/me` & `POST /auth/logout`
+- `POST /auth/refresh` : Rafraîchissement transparent du JWT.
+- `GET /auth/me` : Profil de l'acheteur connecté.
 
 ---
 
-## 3. CATALOGUE & RECHERCHE MARKETPLACE
+## 3. CATALOGUE, VARIANTES, FAVORIS & AVIS 5★
 
-### `GET /catalog/products`
-Recherche multi-critères, filtres à facettes et tri.
-
+### `GET /products`
+Recherche multi-critères, filtres à facettes et tri paginé sur la Marketplace.
 - **Query Parameters :**
-  - `search` (optionnel) : recherche texte sur nom et description (ex: `boubou`)
-  - `category` (optionnel) : slug de catégorie
-  - `minPrice` & `maxPrice` (optionnel) : entiers stricts en FCFA (ex: `minPrice=5000&maxPrice=50000`)
-  - `inStock` (optionnel) : `true` pour filtrer les produits disponibles
-  - `shopId` (optionnel) : filtrer par boutique
-  - `page` & `limit` (optionnel, défaut `1` et `20`)
-  - `sortBy` (optionnel) : `price_asc`, `price_desc`, `newest`, `popular`
+  - `search` : recherche texte sur nom et description
+  - `category` : slug de catégorie
+  - `minPrice` & `maxPrice` : entiers stricts en FCFA
+  - `inStock` : `true` pour exclure les ruptures
+  - `shopId` : filtrer par boutique
+  - `page` & `limit` : pagination (défaut `1` et `20`)
+  - `sortBy` : `price_asc`, `price_desc`, `newest`, `popular`
 
-- **Réponse `200 OK` :**
+### `GET /products/:shopSlug/:productSlug`
+Fiche produit détaillée avec ses `variants` (tailles, couleurs, stock et prix spécifiques), les coordonnées WhatsApp de la boutique et son état `isOnVacation`.
+
+### `POST /products/:id/view`
+Appel non-bloquant au chargement de la fiche produit pour incrémenter le compteur journalier de visites.
+
+### `GET /categories`
+Liste des catégories disponibles (`?shopSlug=teranga-mode` optionnel).
+
+### `GET /wishlist` • `POST /wishlist/:productId` • `DELETE /wishlist/:productId`
+Gestion complète des favoris de l'acheteur connecté (`Authorization: Bearer <accessToken>`).
+
+### `GET /products/:productId/reviews` & `POST /products/:productId/reviews`
+- `GET /products/:productId/reviews` (Public) : Retourne `averageRating`, `totalReviews` et la liste des avis avec réponses vendeur.
+- `POST /products/:productId/reviews` (`CLIENT` ayant une commande `DELIVERED_CONFIRMED` sur ce produit) :
 ```json
 {
-  "success": true,
-  "data": {
-    "products": [
-      {
-        "id": "prod-1",
-        "name": "Robe Soie Dakar",
-        "slug": "robe-soie-dakar",
-        "description": "Tissu de qualité supérieure, couture sur mesure.",
-        "priceFcfa": 25000,
-        "compareAtPriceFcfa": 30000,
-        "stock": 12,
-        "images": ["https://images.unsplash.com/photo-robe.jpg"],
-        "isFeatured": true,
-        "shop": {
-          "id": "shop-1",
-          "name": "Dakar Chic",
-          "slug": "dakar-chic",
-          "isVerified": true,
-          "primaryColor": "#10B981"
-        },
-        "variants": [
-          {
-            "id": "var-1",
-            "sku": "ROBE-BLEU-L",
-            "priceFcfa": 25000,
-            "stock": 5,
-            "attributes": { "taille": "L", "couleur": "Bleu" }
-          }
-        ]
-      }
-    ],
-    "pagination": {
-      "total": 45,
-      "page": 1,
-      "limit": 20,
-      "pages": 3
-    }
-  }
+  "rating": 5,
+  "comment": "Bazin de qualité exceptionnelle, livré en 1h30 par Tiak-Tiak !"
 }
 ```
 
-### `GET /catalog/products/:id`
-Fiche produit détaillée avec variantes, avis 5★ vérifiés et compteur de vues.
-
 ---
 
-## 4. CODES PROMO & MARKETING
+## 4. CODES PROMO, PANIER MULTI-BOUTIQUES & CHECKOUT SÉQUESTRE
 
 ### `POST /coupons/validate`
-Vérification d'un code promo avant validation du panier.
-
-- **Headers :** `Authorization: Bearer <accessToken>`
+Vérifie un code promo (ou un coupon généré par le Wakhale) avant paiement.
 - **Payload :**
 ```json
 {
   "code": "TABASKI20",
-  "shopId": "shop-1",
+  "shopId": "uuid-boutique",
   "subtotalFcfa": 50000
 }
 ```
-- **Réponse `200 OK` (Valide) :**
-```json
-{
-  "success": true,
-  "data": {
-    "valid": true,
-    "couponId": "coup-123",
-    "code": "TABASKI20",
-    "type": "PERCENTAGE",
-    "value": 20,
-    "discountAmountFcfa": 10000,
-    "newSubtotalFcfa": 40000
-  }
-}
-```
-- **Réponse `400 Bad Request` (Expiré ou invalide) :**
-```json
-{
-  "statusCode": 400,
-  "message": "Ce code promotionnel a expiré ou n'est plus valide pour cette boutique.",
-  "error": "Bad Request"
-}
-```
-
----
-
-## 5. TUNNEL DE COMMANDE, SÉQUESTRE & MOBILE MONEY
+- **Réponse `200 OK` :** `{ "valid": true, "discountAmountFcfa": 10000, "newSubtotalFcfa": 40000, ... }`
 
 ### `POST /orders/checkout`
-Validation du panier et mise sous séquestre des fonds. Découpage multi-boutiques automatique.
-
+Validation du panier multi-boutiques, réservation atomique des stocks et blocage en séquestre (`HELD_IN_ESCROW`).
 - **Headers :** `Authorization: Bearer <accessToken>`
 - **Payload :**
 ```json
 {
   "items": [
     {
-      "productId": "prod-1",
-      "variantId": "var-1",
-      "quantity": 2
+      "productId": "uuid-produit-1",
+      "variantId": "uuid-variante-xl",
+      "quantity": 1
     },
     {
-      "productId": "prod-2",
-      "quantity": 1
+      "productId": "uuid-produit-2",
+      "quantity": 2
     }
   ],
+  "deliveryMethod": "TIAK_TIAK",
   "deliveryAddress": "Villa 142, Mermoz Pyrotechnie",
   "deliveryCity": "Dakar",
   "deliveryPhone": "+221765432109",
-  "deliveryNotes": "Appeler en arrivant devant le portail vert",
-  "deliveryMethod": "TIAK_TIAK",
+  "deliveryNotes": "Portail vert à côté de la pharmacie",
   "paymentProvider": "WAVE",
   "couponCode": "TABASKI20"
 }
 ```
-- **Réponse `201 Created` :**
+*(Supporte `"WAVE"`, `"ORANGE_MONEY"` et `"FREE_MONEY"`).*
+
+---
+
+## 5. SUIVI DE COMMANDE, DÉBLOCAGE 1-CLIC, FACTURE PDF & LITIGES
+
+### `GET /orders/client/me` & `GET /orders/:id`
+Liste et détail des commandes de l'acheteur connecté (inclut `deliveryConfirmationCode` à 6 chiffres à communiquer au livreur Tiak-Tiak).
+
+### `GET /orders/:id/tracking`
+Stepper chronologique de la commande (`PAID_ESCROW` ➔ `PREPARING` ➔ `SHIPPED_TIAK_TIAK` ➔ `DELIVERED_CONFIRMED`).
+
+### `POST /orders/:id/confirm-delivery` (Déblocage 1-Clic Acheteur)
+- **Payload :** `{}` (Aucun code requis pour l'acheteur connecté qui clique sur « J'ai bien reçu ma commande »).
+- **Effet :** Débloque instantanément le séquestre vers le Wallet disponible du marchand.
+
+### `GET /orders/:id/invoice`
+Stream binaire (`application/pdf`) du reçu officiel de la commande.
+
+### `POST /disputes/:orderId` & `GET /disputes/:id`
+Ouverture d'un litige par l'acheteur -> **Gèle immédiatement le séquestre (`FROZEN_BY_DISPUTE`)**.
+- **Payload `POST /disputes/:orderId` :**
 ```json
 {
-  "success": true,
-  "data": {
-    "checkoutSession": {
-      "id": "cs-98765",
-      "totalAmountFcfa": 65000,
-      "paymentProvider": "WAVE",
-      "providerReference": "WAVE_TXN_17293849102",
-      "paymentUrl": "https://wave.com/pay/ch_98765_sample"
-    },
-    "orders": [
-      {
-        "id": "ord-1111",
-        "orderNumber": "OB-2026-4821",
-        "shopId": "shop-1",
-        "totalAmountFcfa": 50000,
-        "deliveryFeeFcfa": 2000,
-        "deliveryConfirmationCode": "482910",
-        "status": "PAID_ESCROW",
-        "escrow": {
-          "status": "HELD_ESCROW",
-          "amountFcfa": 50000
-        }
-      }
-    ]
-  }
+  "reason": "Article non conforme à la photo commandée",
+  "evidenceUrls": ["https://openboutik-api.onrender.com/storage/files/dispute1.jpg"]
 }
 ```
 
 ---
 
-## 6. SUIVI DE COMMANDE & DÉBLOCAGE 1-CLIC CLIENT
+## 6. NÉGOCIATION « WAKHALE », LIVE SHOPPING, BNPL & MESSAGERIE
 
-### `GET /orders/client/me`
-Liste des commandes de l'acheteur connecté.
-
-### `GET /orders/:id/trackings`
-Stepper chronologique de la commande.
-
-- **Réponse `200 OK` :**
+### A. Le « Wakhale » Numérique (Côté Acheteur)
+- **`POST /negotiations` :** Proposer un prix (entre 50 % et 99 % du prix affiché) :
 ```json
 {
-  "success": true,
-  "data": [
-    {
-      "id": "track-1",
-      "statusStep": "PAID_ESCROW",
-      "title": "Paiement sécurisé par le Séquestre OpenBoutik",
-      "comment": "Vos fonds sont bloqués et garantis jusqu'à confirmation de livraison.",
-      "timestamp": "2026-10-20T10:00:00Z"
-    },
-    {
-      "id": "track-2",
-      "statusStep": "SHIPPED_TIAK_TIAK",
-      "title": "Colis remis au coursier Tiak-Tiak",
-      "comment": "Course en cours vers Mermoz",
-      "timestamp": "2026-10-20T14:30:00Z"
-    }
-  ]
+  "productId": "uuid-produit",
+  "proposedPriceFcfa": 28000
 }
 ```
+- **`GET /negotiations/my` :** Lister mes négociations en cours et récupérer le coupon `WAKHALE-XXXXXX` généré dès accord.
+- **`GET /negotiations/:id` :** Détail d'une négociation.
+- **`PATCH /negotiations/:id/accept-counter` :** Accepter la contre-offre du vendeur -> génère immédiatement le coupon unique.
 
-### `POST /orders/:id/confirm-delivery` (Déblocage 1-Clic)
-L'acheteur valide la réception du colis. Les fonds sont débloqués immédiatement vers le vendeur.
+### B. Live Shopping & Vidéos Courtes (Spectateur)
+- **`GET /streams?type=LIVE_STREAM&status=LIVE`** & **`GET /streams?type=SHORT_VIDEO`**
+- **`GET /streams/:id` :** Détails du flux et produits épinglés.
+- **WebSocket Socket.io (`/streams`) :**
+  - Connexion sur `http://localhost:4000/streams` (ou `https://openboutik-api.onrender.com/streams`).
+  - Émettre `join_stream` (`{ streamId, userName }`) et `stream_chat_message` (`{ streamId, userName, message }`).
+  - Écouter `live_product_popup` (pop-up d'achat flash en direct) et `stream_chat_message`.
 
-- **Headers :** `Authorization: Bearer <accessToken>`
-- **Payload :** `{}` (Aucun body requis pour l'acheteur connecté)
-- **Réponse `200 OK` :**
-```json
-{
-  "success": true,
-  "message": "Livraison confirmée avec succès. Les fonds ont été débloqués et crédités au commerçant.",
-  "data": {
-    "orderId": "ord-1111",
-    "status": "DELIVERED_CONFIRMED",
-    "releasedAt": "2026-10-20T16:00:00Z"
-  }
-}
-```
+### C. Paiement Fractionné BNPL (3x / 4x) & KYC Acheteur
+- **`POST /bnpl/kyc` :** Soumettre sa CNI (`{ "idCardNumber": "1755199501234", "idCardUrl": "https://..." }`).
+- **`POST /bnpl/orders/:orderId/init` :** Créer un échéancier (`{ "installmentsCount": 3 }` ou `4`).
+- **`GET /bnpl/my-plans` & `GET /bnpl/plans/:planId` :** Suivre ses échéanciers.
+- **`POST /bnpl/installments/:installmentId/pay` :** Régler une mensualité.
 
----
-
-## 7. NÉGOCIATION DE PRIX « WAKHALE »
-
-### `POST /negotiations`
-Faire une offre de prix sur un article.
-
-- **Payload :**
-```json
-{
-  "productId": "prod-1",
-  "proposedPriceFcfa": 28000,
-  "notes": "Je commande immédiatement à 28 000 FCFA"
-}
-```
-- **Réponse `201 Created` :**
-```json
-{
-  "success": true,
-  "data": {
-    "id": "neg-123",
-    "originalPriceFcfa": 35000,
-    "proposedPriceFcfa": 28000,
-    "status": "PENDING",
-    "expiresAt": "2026-10-21T10:00:00Z"
-  }
-}
-```
-
-### `POST /negotiations/:id/respond`
-Répondre à la contre-offre d'un vendeur.
-
-- **Payload :** `{ "action": "ACCEPT" }` ou `{ "action": "REJECT" }`
-- **Réponse `200 OK` (Si accepté) :**
-```json
-{
-  "success": true,
-  "data": {
-    "status": "ACCEPTED",
-    "generatedCoupon": {
-      "code": "WAKHALE-D7E9F2",
-      "discountAmountFcfa": 5000
-    }
-  }
-}
-```
-*Le coupon `WAKHALE-D7E9F2` peut être injecté immédiatement dans le checkout.*
+### D. Messagerie Interne & Upload Cloud Direct
+- **`POST /messages` :** `{ "receiverId": "...", "shopId": "...", "productId": "...", "orderId": "...", "content": "..." }`
+- **`GET /messages/conversations` :** Liste des conversations avec compteur de non-lus.
+- **`GET /messages/thread/:otherUserId` :** Historique complet avec un vendeur.
+- **`PATCH /messages/read/:otherUserId` :** Marquer la conversation comme lue.
+- **`POST /storage/upload-ticket` :** Obtenir une URL signée pour uploader une photo (preuve de litige ou CNI BNPL) directement vers le stockage sécurisé.

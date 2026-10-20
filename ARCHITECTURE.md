@@ -1,8 +1,8 @@
 # OPENBOUTIK API — ARCHITECTURE & CONTRAT TECHNIQUE (v1.0)
-> **Dépôt :** `openboutik-api` (Dev 3 - Lead Backend Architecture)  
+> **Dépôt :** `openboutik-api` (Dev 3 - Lead Backend Architecture - `@HYPNOTYZEDCHART`)  
 > **Branche active :** `develop`  
 > **Stack :** NestJS (CJS) • Prisma ORM v7 • MySQL (InnoDB) • TypeScript  
-> **Destinataires :** Dev 1 (`openboutik-marketplace`), Dev 2 (`openboutik-seller` & Super-Admin) et Dev 3 (Backend)
+> **Destinataires :** Dev 1 (`@mansss7` — `openboutik-marketplace`), Dev 2 (`@akhy-m00` — `openboutik-seller` & Super-Admin) et Dev 3 (`@HYPNOTYZEDCHART` — Backend)
 
 ---
 
@@ -10,12 +10,12 @@
 
 Pour éviter tout conflit entre les 3 dépôts en développement local :
 
-| Pôle / Application | Dépôt GitHub | Rôle | Port Local | URL d'accès |
-| :--- | :--- | :--- | :--- | :--- |
-| **API Backend** | `openboutik-api` | Cerveau Métier, Séquestre, Auth, DB | **`4000`** | `http://localhost:4000/api/v1` |
-| **Swagger Docs** | `openboutik-api` | Documentation interactive OpenAPI | **`4000`** | `http://localhost:4000/api/docs` |
-| **Marketplace Client** | `openboutik-marketplace` | Vitrines, Panier, Checkout, Espace Client | **`3000`** | `http://localhost:3000` |
-| **Espace Vendeur & Super-Admin** | `openboutik-seller` | SaaS Commerçant & Back-office Admin | **`3001`** | `http://localhost:3001` |
+| Pôle / Application | Dépôt GitHub | Responsable | Rôle | Port Local | URL d'accès |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **API Backend (Dev 3)** | `openboutik-api` | `@HYPNOTYZEDCHART` | Cerveau Métier, Séquestre, Auth, DB | **`4000`** | `http://localhost:4000/api/v1` |
+| **Swagger Docs** | `openboutik-api` | `@HYPNOTYZEDCHART` | Documentation interactive OpenAPI | **`4000`** | `http://localhost:4000/api/docs` |
+| **Marketplace Client (Dev 1)** | `openboutik-marketplace` | `@mansss7` | Vitrines, Panier, Checkout, Espace Client | **`3000`** | `http://localhost:3000` |
+| **Espace Vendeur & Super-Admin (Dev 2)** | `openboutik-seller` | `@akhy-m00` | SaaS Commerçant, Store Builder & Back-office Admin | **`3001`** | `http://localhost:3001` |
 
 > **CORS :** L'API autorise nativement les requêtes provenant de `http://localhost:3000` et `http://localhost:3001`.
 
@@ -198,7 +198,7 @@ OpenBoutik applique un modèle économique hybride adapté au commerce sénégal
 | `POST` | `/api/v1/auth/login` | Public | Connexion commerçant. |
 | `GET` | `/api/v1/shops/vendor/me` | `VENDOR` | Tableau de bord vendeur : métriques de ventes, commandes et soldes portefeuilles. |
 | `GET` | `/api/v1/subscriptions/plans` | Public | Grille tarifaire des abonnements SaaS (`FREE`: 3 %, `PRO`: 5 000 FCFA à 0 %, `PREMIUM`: 15 000 FCFA à 0 %). |
-| `POST` | `/api/v1/subscriptions/trial` | `VENDOR` | Activation du mois d'essai gratuit de 30 jours à 0 % de commission. |
+| `POST` | `/api/v1/subscriptions/start-trial` | `VENDOR` | Activation du mois d'essai gratuit de 30 jours à 0 % de commission. |
 | `POST` | `/api/v1/subscriptions/upgrade` | `VENDOR` | Passage au forfait PRO ou PREMIUM avec bascule à 0 % de commission et site dédié. |
 | `POST` | `/api/v1/subscriptions/reactivate` | `VENDOR` | Réactivation immédiate de l'abonnement et du sous-domaine après régularisation. |
 | `POST` | `/api/v1/products` | `VENDOR` | Ajout d'un article au catalogue (prix entier FCFA, stock, photos). |

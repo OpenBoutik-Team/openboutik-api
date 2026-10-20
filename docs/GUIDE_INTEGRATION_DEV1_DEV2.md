@@ -1,5 +1,5 @@
 # 🔌 GUIDE D'INTÉGRATION OFFICIEL — OPENBOUTIK API
-## À destination de Dev 1 (Marketplace Client) et Dev 2 (Espace Marchand & Back-Office Admin)
+## À destination de Dev 1 (`@mansss7` — Marketplace Client) et Dev 2 (`@akhy-m00` — Espace Marchand SaaS & Back-Office Super-Admin)
 
 > **API Base URL (Cloud Production) :** `https://openboutik-api.onrender.com/api/v1`  
 > **Swagger Interactive (Cloud Production) :** `https://openboutik-api.onrender.com/api/docs`  
@@ -21,8 +21,8 @@ Authorization: Bearer <accessToken>
 
 ---
 
-## 📱 PARTIE 1 : DEV 1 — MARKETPLACE ACHETEUR (`openboutik-marketplace`)
-**Port local suggéré :** `3000`
+## 📱 PARTIE 1 : DEV 1 (`@mansss7`) — MARKETPLACE ACHETEUR & VITRINES (`openboutik-marketplace`)
+**Port local officiel :** `3000`
 
 ### 1. Authentification Client
 * **Inscription Client :**
@@ -109,8 +109,8 @@ Authorization: Bearer <accessToken>
 
 ---
 
-## 💼 PARTIE 2 : DEV 2 — DASHBOARD MARCHAND & BACK-OFFICE ADMIN (`openboutik-seller`)
-**Port local suggéré :** `3001`
+## 💼 PARTIE 2 : DEV 2 (`@akhy-m00`) — DASHBOARD MARCHAND, STORE BUILDER & BACK-OFFICE SUPER-ADMIN (`openboutik-seller`)
+**Port local officiel :** `3001`
 
 ### 1. Inscription Vendeur & Étape 0 (CGU Contractuelles)
 * **Création de compte marchand :**
@@ -459,17 +459,15 @@ Réservé aux administrateurs de la plateforme pour la certification et les arbi
     * `PRO` : 5 000 FCFA/mois, **0 % de commission**, sous-domaine dédié (`https://nom-boutique.openboutik.sn`), Store Builder, 5 sponsors, Wakhale.
     * `PREMIUM` : 15 000 FCFA/mois, **0 % de commission**, site dédié, paiement fractionné BNPL 3x/4x, badge Vendeur Vérifié Or, visibilité VIP.
 * **Activer le mois d'essai gratuit de 30 jours (0 % et sous-domaine offert) :**
-  * `POST /subscriptions/trial`
+  * `POST /subscriptions/start-trial`
   * **Headers :** `Authorization: Bearer <vendeur_token>`
   * **Body :** `{ "plan": "PRO" }` (ou `"PREMIUM"`)
   * Accordé immédiatement en 1-clic pour 30 jours si le marchand n'en a jamais bénéficié (protégé par `UsedTrialRegistry`).
 * **Souscrire ou changer de forfait :**
   * `POST /subscriptions/upgrade` avec `{ "plan": "PRO" }` ou `{ "plan": "PREMIUM" }`
 * **Réactiver immédiatement après régularisation solde :**
-  * `POST /subscriptions/reactivate`
+  * `POST /subscriptions/reactivate` avec `{ "plan": "PRO" }` ou `{ "plan": "PREMIUM" }`
   * Débite instantanément le solde disponible du portefeuille et rétablit le statut `ACTIVE`, les 0 % de commission et le sous-domaine.
-* **Historique des facturations du marchand :**
-  * `GET /subscriptions/me`
 * **Rappels Préventifs WhatsApp & SMS (J-3 / J-1 avant date d'échéance) :**
   * Automatiquement envoyés par le Cron bi-quotidien (09h00 et 21h00 GMT) pour prévenir le marchand de la fin de ses 30 jours d'essai gratuit ou de l'échéance mensuelle de son forfait.
   * Message différencié si le solde Wallet est suffisant (rassurant, prélèvement automatique) ou insuffisant (invitation à recharger via Wave/OM avec calcul du montant manquant exact).
@@ -489,11 +487,11 @@ Réservé aux administrateurs de la plateforme pour la certification et les arbi
 
 ### 2. Favoris / Wishlist Client
 * **Ajouter un produit aux favoris :**
-  * `POST /wishlists/:productId`
+  * `POST /wishlist/:productId`
 * **Retirer un produit des favoris :**
-  * `DELETE /wishlists/:productId`
+  * `DELETE /wishlist/:productId`
 * **Lister mes favoris :**
-  * `GET /wishlists` (retourne la liste complète des articles sauvegardés avec fiches produit enrichies).
+  * `GET /wishlist` (retourne la liste complète des articles sauvegardés avec fiches produit enrichies).
 
 ### 3. Messagerie Interne Conversationnelle Acheteur - Vendeur
 * **Envoyer un message :**
@@ -508,23 +506,22 @@ Réservé aux administrateurs de la plateforme pour la certification et les arbi
       "content": "Bonjour, le boubou blanc taille L est-il encore disponible à la boutique ?"
     }
     ```
-* **Récupérer le fil de discussion avec un utilisateur :**
-  * `GET /messages/conversation/:userId`
-* **Compteur global de messages non lus (Badge cloche/chat) :**
-  * `GET /messages/unread/count` (retourne `{ "unreadCount": 3 }`)
-* **Marquer un message comme lu :**
-  * `PATCH /messages/:id/read`
+* **Lister mes conversations actives (avec compteur de messages non lus) :**
+  * `GET /messages/conversations`
+* **Récupérer le fil de discussion avec un interlocuteur :**
+  * `GET /messages/thread/:otherUserId`
+* **Marquer les messages d'un interlocuteur comme lus :**
+  * `PATCH /messages/read/:otherUserId`
+* **Consultation d'audit par le Super-Admin (en cas de litige sur une commande) :**
+  * `GET /admin/messages/order/:orderId`
 
 ### 4. Suivi de Commande & Stepper Timeline
 * **Consulter la timeline chronologique d'une commande :**
-  * `GET /orders/:id/trackings`
+  * `GET /orders/:id/tracking`
   * Retourne les étapes ordonnées : `PAID_ESCROW` ➔ `PREPARING` ➔ `SHIPPED_TIAK_TIAK` ➔ `DELIVERED_CONFIRMED` avec horodatages précis et commentaires compréhensibles pour l'acheteur.
-* **Ajouter un jalon d'expédition (Dev 2 Marchand / Coursier) :**
-  * `POST /orders/:id/trackings`
-  * **Body :** `{ "statusStep": "SHIPPED_TIAK_TIAK", "title": "Colis remis au coursier Tiak-Tiak", "comment": "Livraison en cours sur Almadies" }`
 
 ### 5. Filtres Catalogue & Recherche Avancée
-* `GET /catalog/products`
+* `GET /products`
 * **Paramètres de requête supportés :**
   * `search` : Recherche textuelle sur le nom et la description.
   * `category` : Filtrage par catégorie.
@@ -540,44 +537,42 @@ Réservé aux administrateurs de la plateforme pour la certification et les arbi
 
 ### 1. Le « Wakhale » numérique — Négociation de Prix
 
-#### A. Flux Acheteur (Dev 1 - Marketplace)
+#### A. Flux Acheteur (Dev 1 - `@mansss7` - Marketplace)
 * **Initier une négociation de prix (Faire une offre) :**
   * `POST /negotiations`
   * **Body :**
     ```json
     {
       "productId": "uuid-du-produit",
-      "proposedPriceFcfa": 12000, // Rabais max 50 % du prix initial
-      "notes": "Je prends tout de suite si vous acceptez 12 000 FCFA"
+      "proposedPriceFcfa": 12000 // Rabais max 50 % du prix initial
     }
     ```
 * **Consulter mes négociations en cours :**
-  * `GET /negotiations/me` (statuts : `PENDING`, `ACCEPTED`, `COUNTER_OFFERED`, `REJECTED`, `EXPIRED`)
+  * `GET /negotiations/my` (statuts : `PENDING`, `ACCEPTED`, `COUNTER_OFFERED`, `REJECTED`, `EXPIRED`)
 * **Détail d'une négociation :**
   * `GET /negotiations/:id`
-* **Répondre à une contre-offre du vendeur :**
-  * `POST /negotiations/:id/respond`
-  * **Body :** `{ "action": "ACCEPT" }` ou `{ "action": "REJECT" }`
+* **Accepter la contre-offre du vendeur :**
+  * `PATCH /negotiations/:id/accept-counter`
 * **Utilisation automatique du Coupon Wakhale :**
   * Dès qu'une négociation passe à l'état `ACCEPTED` (que le vendeur ait accepté l'offre ou que l'acheteur ait accepté la contre-offre), l'API génère automatiquement un coupon unique lié : `data.generatedCoupon.code` (ex: `WAKHALE-A8B9C1`).
   * Ce coupon est utilisable lors du checkout pour déduire immédiatement la différence négociée.
 
-#### B. Flux Vendeur (Dev 2 - Espace Marchand)
+#### B. Flux Vendeur (Dev 2 - `@akhy-m00` - Espace Marchand)
 * **Consulter les offres reçues pour ma boutique :**
-  * `GET /negotiations/me`
+  * `GET /negotiations/shop`
 * **Accepter, Rejeter ou Faire une contre-offre :**
-  * `POST /negotiations/:id/respond`
+  * `PATCH /negotiations/:id/respond`
   * **Body pour accepter :**
     ```json
-    { "action": "ACCEPT", "notes": "Marché conclu !" }
+    { "action": "ACCEPT" }
     ```
   * **Body pour contre-offre :**
     ```json
-    { "action": "COUNTER", "counterPriceFcfa": 13500, "notes": "Je vous le laisse au prix coûtant à 13 500 FCFA" }
+    { "action": "COUNTER_OFFER", "counterPriceFcfa": 13500 }
     ```
   * **Body pour refuser :**
     ```json
-    { "action": "REJECT", "notes": "Désolé, prix non négociable sur cet article" }
+    { "action": "REJECT" }
     ```
 
 ---
@@ -586,12 +581,12 @@ Réservé aux administrateurs de la plateforme pour la certification et les arbi
 
 #### A. Consultation des Flux (Dev 1 & Dev 2)
 * **Lister les Lives et Vidéos courtes :**
-  * `GET /streams?type=LIVE_STREAM&status=LIVE_NOW`
+  * `GET /streams?type=LIVE_STREAM&status=LIVE`
   * `GET /streams?type=SHORT_VIDEO`
 * **Détail d'un flux :**
   * `GET /streams/:id` (inclut les articles rattachés `streamProducts`).
 
-#### B. Gestion Vendeur (Dev 2 - Espace Marchand)
+#### B. Gestion Vendeur (Dev 2 - `@akhy-m00` - Espace Marchand)
 * **Créer une session Live ou une vidéo :**
   * `POST /streams`
   * **Body :**
@@ -599,7 +594,7 @@ Réservé aux administrateurs de la plateforme pour la certification et les arbi
     {
       "title": "Vente Flash Spéciale Tabaski — Boubous & Sandales",
       "description": "Direct depuis notre atelier à Sandaga avec remises exclusives",
-      "type": "LIVE_STREAM", // ou "SHORT_VIDEO"
+      "type": "LIVE_STREAM",
       "mediaUrl": "https://cdn.openboutik.sn/live/stream1.m3u8",
       "thumbnailUrl": "https://cdn.openboutik.sn/thumbnails/live1.jpg",
       "scheduledAt": "2026-10-20T18:00:00.000Z",
@@ -607,16 +602,11 @@ Réservé aux administrateurs de la plateforme pour la certification et les arbi
     }
     ```
 * **Changer le statut du stream :**
-  * `PATCH /streams/:id/status` avec `{ "status": "LIVE_NOW" }` ou `{ "status": "ENDED" }`
+  * `PATCH /streams/:id/status` avec `{ "status": "LIVE" }` ou `{ "status": "ENDED" }`
 * **Épingler un produit en direct (Pop-up Flash sur les écrans des spectateurs) :**
-  * `POST /streams/:id/pin-product`
-  * **Body :**
-    ```json
-    {
-      "productId": "uuid-produit-1",
-      "specialPriceFcfa": 10000 // Prix promotionnel exclusif pendant le direct
-    }
-    ```
+  * `PATCH /streams/:id/pin-product/:productId`
+* **Supprimer un flux vidéo :**
+  * `DELETE /streams/:id`
 
 #### C. Intégration WebSocket Temps Réel (`/streams`)
 * **URL de connexion Socket.io :**
@@ -658,8 +648,8 @@ Réservé aux administrateurs de la plateforme pour la certification et les arbi
 
 #### A. Vérification d'Identité KYC Acheteur
 L'octroi d'un échéancier 3x ou 4x exige un profil KYC vérifié :
-* **Soumettre sa pièce d'identité (Dev 1 - Espace Client) :**
-  * `POST /bnpl/kyc/submit`
+* **Soumettre sa pièce d'identité (Dev 1 - `@mansss7` - Espace Client) :**
+  * `POST /bnpl/kyc`
   * **Body :**
     ```json
     {
@@ -667,24 +657,22 @@ L'octroi d'un échéancier 3x ou 4x exige un profil KYC vérifié :
       "idCardUrl": "https://storage.openboutik.sn/kyc/cni_client.jpg"
     }
     ```
-* **Validation / Rejet KYC (Dev 2 / Super-Admin Back-Office) :**
-  * `PATCH /bnpl/kyc/review`
+* **Validation / Rejet KYC (Dev 2 - `@akhy-m00` - Super-Admin Back-Office) :**
+  * `PATCH /bnpl/admin/kyc/:targetUserId`
   * **Body :**
     ```json
     {
-      "userId": "uuid-client",
       "status": "VERIFIED", // ou "REJECTED"
       "rejectionReason": "Photo floue, merci de reprendre" // si rejeté
     }
     ```
 
-#### B. Souscription & Échéancier BNPL (Dev 1 - Marketplace Checkout)
+#### B. Souscription & Échéancier BNPL (Dev 1 - `@mansss7` - Marketplace Checkout)
 * **Initier le fractionnement d'une commande :**
-  * `POST /bnpl/initiate`
+  * `POST /bnpl/orders/:orderId/init`
   * **Body :**
     ```json
     {
-      "orderId": "uuid-commande",
       "installmentsCount": 3 // ou 4
     }
     ```
@@ -693,18 +681,11 @@ L'octroi d'un échéancier 3x ou 4x exige un profil KYC vérifié :
     * Le reliquat de division est reporté sur l'échéance 1.
     * Échéance 1 payable immédiatement, Échéance 2 à +30 jours, Échéance 3 à +60 jours.
 * **Consulter mes plans BNPL en cours :**
-  * `GET /bnpl/plans/me`
+  * `GET /bnpl/my-plans`
 * **Détail d'un plan avec toutes ses échéances :**
-  * `GET /bnpl/plans/:id`
+  * `GET /bnpl/plans/:planId`
 * **Régler une échéance :**
-  * `POST /bnpl/payments/:id/pay`
-  * **Body :**
-    ```json
-    {
-      "paymentProvider": "WAVE", // ou "ORANGE_MONEY", "FREE_MONEY"
-      "phone": "+221770030003"
-    }
-    ```
+  * `POST /bnpl/installments/:installmentId/pay`
   * Dès paiement de la dernière tranche, le plan passe automatiquement à `COMPLETED`.
 
 ---
