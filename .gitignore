@@ -10,4 +10,4 @@ coverage
 /src/generated/prisma
 .claude
 .windsurf
-/agents
+.agents/rules/ARCHITECT_RULES.md
