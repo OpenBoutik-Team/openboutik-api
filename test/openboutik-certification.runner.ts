@@ -18,6 +18,7 @@ import { OrdersService } from '../src/orders/orders.service';
 import { WalletsService } from '../src/wallets/wallets.service';
 import { DisputesService } from '../src/disputes/disputes.service';
 import { CatalogService } from '../src/catalog/catalog.service';
+import { SubscriptionsService } from '../src/subscriptions/subscriptions.service';
 import { JwtService } from '@nestjs/jwt';
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
@@ -38,7 +39,8 @@ async function runIntegralCertificationSuite() {
   const usersService = new UsersService(prisma as any);
   const authService = new AuthService(prisma as any, usersService, jwtService);
   const shopsService = new ShopsService(prisma as any);
-  const ordersService = new OrdersService(prisma as any);
+  const subscriptionsService = new SubscriptionsService(prisma as any);
+  const ordersService = new OrdersService(prisma as any, subscriptionsService);
   const walletsService = new WalletsService(prisma as any);
   const disputesService = new DisputesService(prisma as any);
   const catalogService = new CatalogService(prisma as any);

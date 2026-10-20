@@ -36,7 +36,7 @@ describe('DisputesService (Unit Tests)', () => {
     shopId: 'shop-uuid-1',
     totalAmountFcfa: 35000,
     netVendorAmountFcfa: 33950,
-    status: OrderStatus.PAID_PENDING_DELIVERY,
+    status: OrderStatus.PAID_ESCROW,
     escrow: {
       id: 'escrow-uuid-1',
       status: EscrowStatus.HELD_IN_ESCROW,

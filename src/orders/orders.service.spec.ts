@@ -10,6 +10,7 @@ import {
   SubscriptionPlan,
   DeliveryMethod,
   Role,
+  PaymentProvider,
 } from '../generated/prisma/client';
 
 describe('OrdersService (Unit Tests)', () => {
@@ -112,10 +113,11 @@ describe('OrdersService (Unit Tests)', () => {
       await expect(
         service.checkout('client-uuid-1', {
           items: [],
-          deliveryMethod: DeliveryMethod.STANDARD_DELIVERY,
+          deliveryMethod: DeliveryMethod.TIAK_TIAK,
           deliveryAddress: 'Plateau, Dakar',
           deliveryCity: 'Dakar',
           deliveryPhone: '+221771234567',
+          paymentProvider: PaymentProvider.WAVE,
         }),
       ).rejects.toThrow(BadRequestException);
     });
@@ -126,10 +128,11 @@ describe('OrdersService (Unit Tests)', () => {
       await expect(
         service.checkout('client-uuid-1', {
           items: [{ productId: 'produit-inexistant', quantity: 1 }],
-          deliveryMethod: DeliveryMethod.STANDARD_DELIVERY,
+          deliveryMethod: DeliveryMethod.TIAK_TIAK,
           deliveryAddress: 'Almadies, Dakar',
           deliveryCity: 'Dakar',
           deliveryPhone: '+221771234567',
+          paymentProvider: PaymentProvider.WAVE,
         }),
       ).rejects.toThrow(BadRequestException);
     });
@@ -153,10 +156,11 @@ describe('OrdersService (Unit Tests)', () => {
       await expect(
         service.checkout('client-uuid-1', {
           items: [{ productId: 'prod-1', quantity: 5 }], // Demande 5 alors que stock = 2
-          deliveryMethod: DeliveryMethod.STANDARD_DELIVERY,
+          deliveryMethod: DeliveryMethod.TIAK_TIAK,
           deliveryAddress: 'Medina, Dakar',
           deliveryCity: 'Dakar',
           deliveryPhone: '+221771234567',
+          paymentProvider: PaymentProvider.WAVE,
         }),
       ).rejects.toThrow(BadRequestException);
     });

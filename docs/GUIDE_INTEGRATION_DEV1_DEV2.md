@@ -77,7 +77,7 @@ Authorization: Bearer <accessToken>
     * Vérifie et réserve le stock de manière atomique.
     * Découpe automatiquement le panier en sous-commandes distinctes par boutique.
     * Bloque les fonds en séquestre (`HELD_IN_ESCROW`).
-    * Calcule les commissions exactes (4 % en plan FREE, 2 % en plan PREMIUM).
+    * Calcule les commissions exactes (3 % en plan FREE marketplace, 0 % en forfaits PRO et PREMIUM).
     * Génère un code OTP Tiak-Tiak à 6 chiffres unique pour chaque commande.
 
 ---
@@ -184,7 +184,7 @@ Permet une sauvegarde progressive et une reprise fluide de session interrompue.
     *Activera automatiquement la boutique (`isActive = true`) et passera `onboardingCompleted = true`.*
   * **Étape 5 — Choix du Forfait SaaS (Optionnelle) :**
     ```json
-    { "plan": "FREE" } // ou "PREMIUM"
+    { "plan": "FREE" } // ou "PRO" (5 000 FCFA à 0 % com), "PREMIUM" (15 000 FCFA à 0 % com + BNPL)
     ```
 
 ---
@@ -450,6 +450,26 @@ Réservé aux administrateurs de la plateforme pour la certification et les arbi
 * `GET /shops/check-slug/:slug`
 * **Protection Système :** Rejette immédiatement avec `{ "available": false, "reason": "Ce nom est un mot-clé système réservé." }` les slugs suivants :
   * `api`, `admin`, `www`, `app`, `auth`, `dashboard`, `checkout`, `mail`, `secure`, `static`, etc.
+
+#### L. Forfaits SaaS, 0 % Commission & Essai Gratuit 30j (Spécifique Dev 2)
+* **Grille tarifaire officielle :**
+  * `GET /subscriptions/plans`
+  * Retourne les 3 forfaits :
+    * `FREE` : 0 FCFA/mois, 3.0 % de commission sur les ventes marketplace.
+    * `PRO` : 5 000 FCFA/mois, **0 % de commission**, sous-domaine dédié (`https://nom-boutique.openboutik.sn`), Store Builder, 5 sponsors, Wakhale.
+    * `PREMIUM` : 15 000 FCFA/mois, **0 % de commission**, site dédié, paiement fractionné BNPL 3x/4x, badge Vendeur Vérifié Or, visibilité VIP.
+* **Activer le mois d'essai gratuit de 30 jours (0 % et sous-domaine offert) :**
+  * `POST /subscriptions/trial`
+  * **Headers :** `Authorization: Bearer <vendeur_token>`
+  * **Body :** `{ "plan": "PRO" }` (ou `"PREMIUM"`)
+  * Accordé immédiatement en 1-clic pour 30 jours si le marchand n'en a jamais bénéficié (protégé par `UsedTrialRegistry`).
+* **Souscrire ou changer de forfait :**
+  * `POST /subscriptions/upgrade` avec `{ "plan": "PRO" }` ou `{ "plan": "PREMIUM" }`
+* **Réactiver immédiatement après régularisation solde :**
+  * `POST /subscriptions/reactivate`
+  * Débite instantanément le solde disponible du portefeuille et rétablit le statut `ACTIVE`, les 0 % de commission et le sous-domaine.
+* **Historique des facturations du marchand :**
+  * `GET /subscriptions/me`
 
 ---
 

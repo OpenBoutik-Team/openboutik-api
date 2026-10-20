@@ -750,7 +750,7 @@ describe('OpenBoutik V2 — Suite Complète de Crash-Test E2E & Pentest (8 Scén
       expect(commissionPremium + netVendorPremium).toBe(40000); // 800 + 39200 === 40000 strict !
 
       // Simulation de libération du séquestre après confirmation de livraison
-      let orderStatus33 = OrderStatus.SHIPPED_TIAK_TIAK;
+      let orderStatus33: OrderStatus = OrderStatus.SHIPPED_TIAK_TIAK;
       mockPrisma.order.findUnique.mockImplementation(async () => ({
         id: 'ord-delivered-1',
         shopId: shopA.id,
@@ -788,7 +788,7 @@ describe('OpenBoutik V2 — Suite Complète de Crash-Test E2E & Pentest (8 Scén
         { confirmationCode: '4829' },
       );
 
-      expect(confirmed.status).toBe(OrderStatus.DELIVERED_CONFIRMED);
+      expect(confirmed?.status).toBe(OrderStatus.DELIVERED_CONFIRMED);
       expect(mockPrisma.vendorWallet.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { shopId: shopA.id },
@@ -1180,15 +1180,15 @@ describe('OpenBoutik V2 — Suite Complète de Crash-Test E2E & Pentest (8 Scén
 
       mockPrisma.shop.update.mockResolvedValue({
         ...shopA,
-        kycStatus: KycStatus.APPROVED,
+        kycStatus: KycStatus.VERIFIED,
         isVerified: true,
       });
 
-      const updated = await shopsService.reviewKyc(adminUser.id, shopA.id, {
-        status: KycStatus.APPROVED,
-      });
+      const updated = await shopsService.reviewKyc(shopA.id, {
+        status: KycStatus.VERIFIED,
+      }, adminUser.id);
 
-      expect(updated.kycStatus).toBe(KycStatus.APPROVED);
+      expect(updated.kycStatus).toBe(KycStatus.VERIFIED);
       expect(updated.isVerified).toBe(true);
     });
 
@@ -1233,7 +1233,7 @@ describe('OpenBoutik V2 — Suite Complète de Crash-Test E2E & Pentest (8 Scén
       expect(shipped.status).toBe(OrderStatus.SHIPPED_TIAK_TIAK);
 
       // 3. Confirmation de livraison avec OTP par le client
-      let orderStatus83 = OrderStatus.SHIPPED_TIAK_TIAK;
+      let orderStatus83: OrderStatus = OrderStatus.SHIPPED_TIAK_TIAK;
       mockPrisma.order.findUnique.mockImplementation(async () => ({
         ...order,
         status: orderStatus83,
@@ -1254,7 +1254,7 @@ describe('OpenBoutik V2 — Suite Complète de Crash-Test E2E & Pentest (8 Scén
         Role.CLIENT,
         { confirmationCode: '7721' },
       );
-      expect(delivered.status).toBe(OrderStatus.DELIVERED_CONFIRMED);
+      expect(delivered?.status).toBe(OrderStatus.DELIVERED_CONFIRMED);
 
       // Vérification que les 19 200 FCFA sont crédités sur le solde disponible
       expect(mockPrisma.vendorWallet.update).toHaveBeenCalledWith(
@@ -1309,8 +1309,8 @@ describe('OpenBoutik V2 — Suite Complète de Crash-Test E2E & Pentest (8 Scén
       mockPrisma.dispute.findUnique.mockResolvedValue(mockDispute);
       mockPrisma.dispute.update.mockResolvedValue({
         ...mockDispute,
-        status: DisputeStatus.RESOLVED_CLIENT_REFUNDED,
-        adminResolution: 'Remboursement intégral Wave accordé au client.',
+        status: DisputeStatus.RESOLVED_REFUND_CLIENT,
+        decisionNotes: 'Remboursement intégral Wave accordé au client.',
       });
 
       const resolution = await disputesService.arbitrateDispute(
@@ -1318,11 +1318,11 @@ describe('OpenBoutik V2 — Suite Complète de Crash-Test E2E & Pentest (8 Scén
         mockDispute.id,
         {
           decision: DisputeDecision.REFUND_CLIENT,
-          resolutionNote: 'Remboursement intégral Wave accordé au client.',
+          decisionNotes: 'Remboursement intégral Wave accordé au client.',
         },
       );
 
-      expect(resolution.status).toBe(DisputeStatus.RESOLVED_CLIENT_REFUNDED);
+      expect(resolution.status).toBe(DisputeStatus.RESOLVED_REFUND_CLIENT);
       // Décrément du solde séquestre sans créditer le vendeur
       expect(mockPrisma.vendorWallet.update).toHaveBeenCalledWith(
         expect.objectContaining({

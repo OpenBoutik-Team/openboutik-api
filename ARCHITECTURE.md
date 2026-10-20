@@ -132,15 +132,17 @@ L'API distingue trois rôles stricts :
 
 ---
 
-## 6. MODÈLE ÉCONOMIQUE & COMMISSIONS DYNAMIQUES
+## 6. MODÈLE ÉCONOMIQUE HYBRIDE SAAS & ABONNEMENTS (PHASE 5)
 
-Les commissions sont prélevées automatiquement lors du déblocage du séquestre selon le forfait SaaS actif de la boutique :
+OpenBoutik applique un modèle économique hybride adapté au commerce sénégalais, combinant une marketplace de démarrage et un SaaS marchand (« Shopify sénégalais ») :
 
-* **Plan `FREE` :** **4 %** de commission sur la vente.
-* **Plan `PRO` :** **3 %** de commission sur la vente.
-* **Plan `PREMIUM` :** **2 %** de commission sur la vente.
+* **Plan `FREE` (Marketplace Starter) :** **Gratuit (0 FCFA/mois)** avec **3.0 %** de commission sur les ventes livrées. C'est le **seul forfait soumis à une commission**. La boutique est listée sur la marketplace centrale (`www.openboutik.sn`).
+* **Plan `PRO` (Site Dédié & 0 % Commission) :** **5 000 FCFA / mois** — **0 % de commission** sur toutes les ventes (100 % de marge pour le marchand), sous-domaine dédié (`https://nom-boutique.openboutik.sn`), Store Builder complet (thème, couleurs, bannières), jusqu'à 5 sponsors vitrine, négociation Wakhale et Live Shopping.
+* **Plan `PREMIUM` (Élite & Visibilité VIP) :** **15 000 FCFA / mois** — **0 % de commission** sur toutes les ventes, sous-domaine dédié, achat fractionné BNPL 3x/4x pour ses clients, badge officiel Vendeur Vérifié Or, mise en avant VIP sur la page d'accueil et conciergerie support.
 
-> **Snapshot comptable :** Au moment de la création de la commande, le taux (`commissionRate`), le montant de la commission (`commissionAmountFcfa`) et le montant net vendeur (`netVendorAmountFcfa`) sont figés dans l'enregistrement `Order` pour garantir une traçabilité financière inaltérable.
+> **Période d'essai 30 jours :** Les marchands bénéficient d'un mois d'essai gratuit à 0 % de commission et sous-domaine offert sur les forfaits PRO et PREMIUM (protégé contre la fraude multi-comptes via le registre `UsedTrialRegistry`).
+> **Dunning Engine & Moteur de Recouvrement :** L'abonnement mensuel est prélevé automatiquement sur le solde disponible (`availableBalanceFcfa`) du portefeuille `VendorWallet`. En cas de solde insuffisant lors du renouvellement, une période de grâce de 72h (statut `PAST_DUE`) maintient le 0 % et le site actif avant bascule automatique en plan `FREE`.
+> **Snapshot comptable :** Au moment de la création de la commande, le taux (`commissionRate`), le montant de la commission (`commissionAmountFcfa` : 0 en PRO/PREMIUM, 3 % en FREE) et le montant net vendeur (`netVendorAmountFcfa`) sont figés dans l'enregistrement `Order` pour garantir une traçabilité financière inaltérable.
 
 ---
 
@@ -195,9 +197,10 @@ Les commissions sont prélevées automatiquement lors du déblocage du séquestr
 | `POST` | `/api/v1/auth/register/vendor` | Public | Inscription marchand en transaction ACID (User + Boutique + Portefeuille). |
 | `POST` | `/api/v1/auth/login` | Public | Connexion commerçant. |
 | `GET` | `/api/v1/shops/vendor/me` | `VENDOR` | Tableau de bord vendeur : métriques de ventes, commandes et soldes portefeuilles. |
-| `PATCH` | `/api/v1/shops/vendor/me` | `VENDOR` | Personnalisation de la boutique (nom, WhatsApp, numéros Wave/OM, logo, bannière, couleur HEX). |
-| `GET` | `/api/v1/subscriptions/plans` | Public | Grille tarifaire des abonnements SaaS (`FREE`: 4 %, `PRO`: 3 %, `PREMIUM`: 2 %). |
-| `POST` | `/api/v1/subscriptions/upgrade` | `VENDOR` | Passage au forfait PRO ou PREMIUM avec réduction de commission. |
+| `GET` | `/api/v1/subscriptions/plans` | Public | Grille tarifaire des abonnements SaaS (`FREE`: 3 %, `PRO`: 5 000 FCFA à 0 %, `PREMIUM`: 15 000 FCFA à 0 %). |
+| `POST` | `/api/v1/subscriptions/trial` | `VENDOR` | Activation du mois d'essai gratuit de 30 jours à 0 % de commission. |
+| `POST` | `/api/v1/subscriptions/upgrade` | `VENDOR` | Passage au forfait PRO ou PREMIUM avec bascule à 0 % de commission et site dédié. |
+| `POST` | `/api/v1/subscriptions/reactivate` | `VENDOR` | Réactivation immédiate de l'abonnement et du sous-domaine après régularisation. |
 | `POST` | `/api/v1/products` | `VENDOR` | Ajout d'un article au catalogue (prix entier FCFA, stock, photos). |
 | `PATCH` | `/api/v1/products/:id` | `VENDOR` | Modification d'un produit (avec sécurité d'ownership). |
 | `PATCH` | `/api/v1/products/:id/stock` | `VENDOR` | Ajustement rapide du stock physique. |
@@ -235,11 +238,11 @@ Les commissions sont prélevées automatiquement lors du déblocage du séquestr
 > **Mot de passe de démonstration (Vendeurs & Clients de test) :** `Passer123!`
 2. **Vendeur 1 — Boutique « Teranga Mode » (Médina, Dakar) :**
    * **Identifiant :** `moussa.diop@terangamode.sn` ou `+221771234567`
-   * **Slug vitrine :** `teranga-mode` (Plan `PRO` - 3 % commission)
+   * **Slug vitrine :** `teranga-mode` (Plan `PRO` - 5 000 FCFA/mois, 0 % commission, sous-domaine dédié)
    * **WhatsApp :** `+221771234567`
 3. **Vendeur 2 — Boutique « Dakar Tech Hub » (Plateau, Dakar) :**
    * **Identifiant :** `aminata.sow@dakartech.sn` ou `+221789876543`
-   * **Slug vitrine :** `dakar-tech-hub` (Plan `FREE` - 4 % commission)
+   * **Slug vitrine :** `dakar-tech-hub` (Plan `FREE` - 3 % commission marketplace)
    * **WhatsApp :** `+221789876543`
 4. **Client Acheteur (Mermoz, Dakar) :**
    * **Identifiant :** `client.fatou@gmail.com` ou `+221765432109`

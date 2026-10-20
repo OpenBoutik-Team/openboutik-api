@@ -158,11 +158,11 @@ async function runOnboardingAndKycSuite() {
 
   assert(step1Result.hasShop === true, 'Boutique créée en base de données');
   assert(step1Result.onboardingStep === 2, 'Progression automatique vers l’étape 2');
-  assert(step1Result.shop.mainCategory === 'Mode & Prêt-à-porter', 'Catégorie principale sauvegardée');
+  assert(step1Result.shop!.mainCategory === 'Mode & Prêt-à-porter', 'Catégorie principale sauvegardée');
 
   // Vérification de la création du portefeuille
   const walletCheck = await prisma.vendorWallet.findUnique({
-    where: { shopId: step1Result.shop.id },
+    where: { shopId: step1Result.shop!.id },
   });
   assert(!!walletCheck && walletCheck.availableBalanceFcfa === 0, 'Portefeuille marchand initialisé à 0 FCFA');
 
@@ -193,7 +193,7 @@ async function runOnboardingAndKycSuite() {
 
   const step2Result = await shopsService.saveOnboardingStep(vendorId, 2, { skip: true });
   assert(step2Result.onboardingStep === 3, 'Étape 2 sautée avec succès -> Passage à l’étape 3');
-  assert(step2Result.shop.primaryColor === '#10B981', 'Couleur par défaut (#10B981) préservée');
+  assert(step2Result.shop!.primaryColor === '#10B981', 'Couleur par défaut (#10B981) préservée');
 
   // ==========================================================================
   // ÉPREUVE 7 : ÉTAPE 3 — CONTACT SOCIAL COMMERCE (OBLIGATOIRE)
@@ -213,7 +213,7 @@ async function runOnboardingAndKycSuite() {
     whatsappNumber: '+221774443322',
   });
   assert(step3Result.onboardingStep === 4, 'WhatsApp enregistré -> Passage à l’étape 4');
-  assert(step3Result.shop.whatsappNumber === '+221774443322', 'Numéro WhatsApp bien associé');
+  assert(step3Result.shop!.whatsappNumber === '+221774443322', 'Numéro WhatsApp bien associé');
 
   // ==========================================================================
   // ÉPREUVE 8 : ÉTAPE 4 — PAIEMENTS SÉQUESTRE & TITULAIRE DU COMPTE
@@ -240,8 +240,8 @@ async function runOnboardingAndKycSuite() {
 
   assert(step4Result.onboardingStep === 5, 'Passage à l’étape 5');
   assert(step4Result.onboardingCompleted === true, 'Onboarding marqué comme complété (Étapes 1, 3, 4 validées)');
-  assert(step4Result.shop.isActive === true, 'Boutique activée et visible sur la marketplace');
-  assert(step4Result.shop.isVerified === false, 'isVerified reste false tant que le Super-Admin n’a pas certifié');
+  assert(step4Result.shop!.isActive === true, 'Boutique activée et visible sur la marketplace');
+  assert(step4Result.shop!.isVerified === false, 'isVerified reste false tant que le Super-Admin n’a pas certifié');
 
   // ==========================================================================
   // ÉPREUVE 9 : ÉTAPE 5 — CHOIX DU PLAN SAAS
@@ -251,7 +251,7 @@ async function runOnboardingAndKycSuite() {
   const step5Result = await shopsService.saveOnboardingStep(vendorId, 5, {
     plan: SubscriptionPlan.PREMIUM,
   });
-  assert(step5Result.shop.subscriptionPlan === SubscriptionPlan.PREMIUM, 'Plan SaaS mis à jour en PREMIUM');
+  assert(step5Result.shop!.subscriptionPlan === SubscriptionPlan.PREMIUM, 'Plan SaaS mis à jour en PREMIUM');
   assert(step5Result.checklist.hasCompletedOnboarding === true, 'Checklist : Onboarding 100 % finalisé');
 
   // ==========================================================================
@@ -261,7 +261,7 @@ async function runOnboardingAndKycSuite() {
 
   // Crédit de 50 000 FCFA sur le solde disponible pour simuler des ventes livrées
   await prisma.vendorWallet.update({
-    where: { shopId: step5Result.shop.id },
+    where: { shopId: step5Result.shop!.id },
     data: { availableBalanceFcfa: 50000 },
   });
 
@@ -312,7 +312,7 @@ async function runOnboardingAndKycSuite() {
   console.log('\n--- 12. ARBITRAGE KYC PAR LE SUPER-ADMIN & TRACE D’AUDIT ---');
 
   const kycApproved = await shopsService.reviewKyc(
-    step5Result.shop.id,
+    step5Result.shop!.id,
     { status: KycStatus.VERIFIED, verifyShopBadge: true },
     superAdmin!.id,
   );
@@ -322,7 +322,7 @@ async function runOnboardingAndKycSuite() {
 
   // Vérification de la trace immuable dans AuditLog
   const auditLogEntry = await prisma.auditLog.findFirst({
-    where: { entityId: step5Result.shop.id, action: 'KYC_VERIFIED' },
+    where: { entityId: step5Result.shop!.id, action: 'KYC_VERIFIED' },
     orderBy: { createdAt: 'desc' },
   });
   assert(!!auditLogEntry && auditLogEntry.userId === superAdmin!.id, 'Journal d’audit KYC_VERIFIED certifié');
@@ -342,10 +342,10 @@ async function runOnboardingAndKycSuite() {
   assert(payoutSuccess.remainingBalanceFcfa === 25000, 'Solde restant exact (50 000 - 25 000 = 25 000 FCFA)');
 
   // Nettoyage après test
-  await prisma.auditLog.deleteMany({ where: { entityId: step5Result.shop.id } });
+  await prisma.auditLog.deleteMany({ where: { entityId: step5Result.shop!.id } });
   await prisma.walletPayout.deleteMany({ where: { walletId: walletCheck!.id } });
   await prisma.vendorWallet.delete({ where: { id: walletCheck!.id } });
-  await prisma.shop.delete({ where: { id: step5Result.shop.id } });
+  await prisma.shop.delete({ where: { id: step5Result.shop!.id } });
   await prisma.user.delete({ where: { id: vendorId } });
 
   console.log('\n========================================================================================');

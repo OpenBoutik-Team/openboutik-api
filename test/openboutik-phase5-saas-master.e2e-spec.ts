@@ -115,7 +115,7 @@ describe('OpenBoutik API — Certification E2E Phase 5 (SaaS Multi-Tenant, Store
         subdomainEnabled: false,
         customDomain: null,
         subscriptionPlan: SubscriptionPlan.FREE,
-        subscriptionStatus: SubscriptionStatus.FREE,
+        subscriptionStatus: SubscriptionStatus.ACTIVE,
         commissionRate: 3.0,
         totalCommissionSavedFcfa: 0,
         hasUsedFreeTrial: false,

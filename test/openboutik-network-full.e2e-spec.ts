@@ -261,7 +261,7 @@ describe('OpenBoutik API — Suite Intégrale Réseau & Pentest E2E (7 Couches C
   beforeAll(async () => {
     resetDatabase();
 
-    const mockPrismaService = {
+    const mockPrismaService: any = {
       $connect: jest.fn().mockResolvedValue(undefined),
       $disconnect: jest.fn().mockResolvedValue(undefined),
       user: {

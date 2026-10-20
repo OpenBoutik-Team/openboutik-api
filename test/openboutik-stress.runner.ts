@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { PrismaClient, Role, PaymentProvider, DeliveryMethod, OrderStatus, EscrowStatus } from '../src/generated/prisma/client';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 import { OrdersService } from '../src/orders/orders.service';
+import { SubscriptionsService } from '../src/subscriptions/subscriptions.service';
 import { DisputesService } from '../src/disputes/disputes.service';
 import { DisputeDecision } from '../src/disputes/dto/arbitrate-dispute.dto';
 import { WalletsService } from '../src/wallets/wallets.service';
@@ -15,7 +16,8 @@ async function runIntenseStressSuite() {
   const adapter = new PrismaMariaDb(process.env.DATABASE_URL || 'mysql://root:@localhost:3306/openboutik_db');
   const prisma = new PrismaClient({ adapter });
 
-  const ordersService = new OrdersService(prisma as any);
+  const subscriptionsService = new SubscriptionsService(prisma as any);
+  const ordersService = new OrdersService(prisma as any, subscriptionsService);
   const disputesService = new DisputesService(prisma as any);
   const walletsService = new WalletsService(prisma as any);
   const catalogService = new CatalogService(prisma as any);
@@ -102,8 +104,8 @@ async function runIntenseStressSuite() {
 
   assert(orderTeranga.orderNumber !== orderTech.orderNumber, 'Numéros de commande uniques');
   assert(orderTeranga.deliveryConfirmationCode !== orderTech.deliveryConfirmationCode, 'Codes OTP Tiak-Tiak indépendants');
-  assert(orderTeranga.escrow.status === EscrowStatus.HELD_IN_ESCROW, 'Séquestre 1 bloqué (HELD_IN_ESCROW)');
-  assert(orderTech.escrow.status === EscrowStatus.HELD_IN_ESCROW, 'Séquestre 2 bloqué (HELD_IN_ESCROW)');
+  assert((orderTeranga as any).escrow?.status === EscrowStatus.HELD_IN_ESCROW, 'Séquestre 1 bloqué (HELD_IN_ESCROW)');
+  assert((orderTech as any).escrow?.status === EscrowStatus.HELD_IN_ESCROW, 'Séquestre 2 bloqué (HELD_IN_ESCROW)');
 
   // Vérification de la décrémentation des stocks physiques
   const freshProd1 = await prisma.product.findUnique({ where: { id: productShop1.id } });
@@ -132,7 +134,7 @@ async function runIntenseStressSuite() {
     Role.VENDOR,
     { confirmationCode: orderTeranga.deliveryConfirmationCode },
   );
-  assert(validRelease.status === OrderStatus.DELIVERED_CONFIRMED, 'Commande passée à DELIVERED_CONFIRMED');
+  assert(validRelease?.status === OrderStatus.DELIVERED_CONFIRMED, 'Commande passée à DELIVERED_CONFIRMED');
 
   const checkedEscrow = await prisma.escrowTransaction.findUnique({ where: { orderId: orderTeranga.id } });
   assert(checkedEscrow!.status === EscrowStatus.RELEASED_TO_VENDOR, 'Séquestre débloqué (RELEASED_TO_VENDOR)');

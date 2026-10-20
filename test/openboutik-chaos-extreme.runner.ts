@@ -10,6 +10,7 @@ import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 import { OrdersService } from '../src/orders/orders.service';
 import { DisputesService } from '../src/disputes/disputes.service';
 import { WalletsService } from '../src/wallets/wallets.service';
+import { SubscriptionsService } from '../src/subscriptions/subscriptions.service';
 
 async function runChaosExtremeSuite() {
   console.log('========================================================================================');
@@ -19,7 +20,8 @@ async function runChaosExtremeSuite() {
   const adapter = new PrismaMariaDb(process.env.DATABASE_URL || 'mysql://root:@localhost:3306/openboutik_db');
   const prisma = new PrismaClient({ adapter });
 
-  const ordersService = new OrdersService(prisma as any);
+  const subscriptionsService = new SubscriptionsService(prisma as any);
+  const ordersService = new OrdersService(prisma as any, subscriptionsService);
   const disputesService = new DisputesService(prisma as any);
   const walletsService = new WalletsService(prisma as any);
 

@@ -884,7 +884,7 @@ describe('OpenBoutik API — Certification E2E Phase 4 (Wakhale, Live Shopping, 
         senderName: 'Fatou',
       });
       expect(chatRes.success).toBe(true);
-      expect(chatRes.chatData.message).toContain('Le boubou bleu');
+      expect(chatRes.chatData!.message).toContain('Le boubou bleu');
     });
   });
 
